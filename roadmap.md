@@ -5,4 +5,4 @@
 - [x] Social, portfolio, and services tools
 - [x] Website builder and live management
 - [x] Media kit, opportunities, inquiries, analytics, settings
-- [ ] Validate build and desktop/mobile flows
+- [x] Validate build and desktop/mobile flows
