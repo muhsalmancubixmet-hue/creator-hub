@@ -25,8 +25,9 @@ import { cn } from "@/lib/utils";
 import { analytics, creator, inquiries, notifications, opportunities, portfolio, services, socialAccounts, stats, websiteTemplates } from "@/lib/creator-data";
 
 type PageKey = "dashboard" | "profile" | "social" | "portfolio" | "services" | "website" | "media-kit" | "opportunities" | "inquiries" | "analytics" | "settings";
+type AppPath = "/" | "/profile" | "/social-media" | "/portfolio" | "/services" | "/website" | "/media-kit" | "/opportunities" | "/inquiries" | "/analytics" | "/settings";
 
-const nav: Array<{ to: string; label: string; icon: LucideIcon; key: PageKey; badge?: string }> = [
+const nav: Array<{ to: AppPath; label: string; icon: LucideIcon; key: PageKey; badge?: string }> = [
   { to:"/", label:"Dashboard", icon:LayoutDashboard, key:"dashboard" }, { to:"/profile", label:"My Profile", icon:UserRound, key:"profile" },
   { to:"/social-media", label:"Social Media", icon:Share2, key:"social" }, { to:"/portfolio", label:"Portfolio", icon:Grid3X3, key:"portfolio" },
   { to:"/services", label:"Services & Pricing", icon:CircleDollarSign, key:"services" }, { to:"/website", label:"My Website", icon:Globe2, key:"website" },
