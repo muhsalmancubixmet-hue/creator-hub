@@ -6,3 +6,4 @@
 - Keep creator-domain mock entities centralized in `src/lib/creator-data.ts` so a Django API adapter can replace them later.
 - Route pages render through one shared creator workspace shell to keep desktop and mobile navigation behavior consistent.
 - Prototype mutations remain client-local and must clearly communicate mock completion; there is no persistence layer yet.
+- Regions, currencies, languages, categories and platforms come from `src/lib/platform-config.ts`; never hardcode them in components — the platform is global and regional data is demo-only.
