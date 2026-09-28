@@ -60,3 +60,6 @@
 @utility creator-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 1px 1px color-mix(in oklab, var(--foreground) 4%, transparent), 0 12px 35px color-mix(in oklab, var(--foreground) 4%, transparent); }
 @utility subtle-grid { background-image: linear-gradient(to right,color-mix(in oklab,var(--border) 40%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in oklab,var(--border) 40%,transparent) 1px,transparent 1px); background-size: 32px 32px; }
 @utility text-balance { text-wrap: balance; }
+
+.map-pin { display:block; width:18px; height:18px; border-radius:9999px; background: var(--coral); border: 3px solid var(--background); box-shadow: 0 2px 8px oklch(0 0 0 / .3); }
+.leaflet-container { font-family: inherit; z-index: 0; }
