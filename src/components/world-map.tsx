@@ -4,7 +4,7 @@ export interface MapMarker { id: string; lat: number; lng: number; title: string
 
 /** Reusable global map (Leaflet + OpenStreetMap) with clustering and optional radius. Browser-only: Leaflet loads after mount. */
 export function WorldMap({ markers, center, radiusKm, onSelect, className }: {
-  markers: MapMarker[]; center?: { lat: number; lng: number } | null; radiusKm?: number;
+  markers: MapMarker[]; center?: { lat: number; lng: number } | null; radiusKm?: number | undefined;
   onSelect?: (id: string) => void; className?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
