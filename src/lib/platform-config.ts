@@ -20,11 +20,11 @@ export interface MoneyRange { min: number; max: number; currency: CurrencyCode }
 
 export function formatMoney(m: Money | null | undefined, opts: { compact?: boolean } = {}): string {
   if (!m) return "Contact for price";
-  const cur = currencies.find(c => c.code === m.currency);
-  return new Intl.NumberFormat(cur?.locale ?? "en-US", {
-    style: "currency", currency: m.currency, maximumFractionDigits: 0,
-    notation: opts.compact ? "compact" : "standard",
-  }).format(m.amount);
+  // Fixed "en-US" locale + hand-rolled compact notation keeps server and browser output identical.
+  const compact = opts.compact && m.amount >= 1000;
+  const value = compact ? (m.amount >= 1e6 ? m.amount / 1e6 : m.amount / 1e3) : m.amount;
+  const out = new Intl.NumberFormat("en-US", { style: "currency", currency: m.currency, maximumFractionDigits: compact ? 1 : 0 }).format(value);
+  return compact ? out + (m.amount >= 1e6 ? "M" : "K") : out;
 }
 export function formatRange(r: MoneyRange): string {
   return `${formatMoney({ amount: r.min, currency: r.currency }, { compact: true })}–${formatMoney({ amount: r.max, currency: r.currency }, { compact: true })}`;
