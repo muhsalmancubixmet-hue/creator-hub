@@ -95,3 +95,19 @@ export const analytics = [
 ];
 
 export const websiteTemplates = ["Minimal Creator", "Fashion", "Travel", "Food", "Lifestyle", "Professional", "Photography", "Gaming"];
+
+export interface CollabMessage { id:string; from:"brand"|"creator"; text:string; time:string; revision?:"Approved"|"Changes requested"|"In review" }
+export interface Collaboration { id:string; brand:string; campaign:string; deliverables:string; dueDate:string; currentStep:number; source:{ type:"inquiry"|"opportunity"; id:string }; messages:CollabMessage[] }
+export const milestoneSteps = ["Agreement Signed","Concept Approved","Draft Upload","Brand Feedback","Published Live"];
+export const collaborations: Collaboration[] = [
+  { id:"col_01", brand:"Terra Footwear", campaign:"Walk Local", deliverables:"1 reel + 4 story frames", dueDate:"2026-10-14", currentStep:2, source:{type:"inquiry",id:"inq_04"}, messages:[
+    { id:"m1", from:"brand", text:"Contract countersigned — welcome aboard! Brief and product are on the way.", time:"Sep 23" },
+    { id:"m2", from:"creator", text:"Concept deck attached: three city walks, morning light, product in motion.", time:"Sep 25", revision:"In review" },
+    { id:"m3", from:"brand", text:"Love concept B. Approved — please keep the logo visible in the first 3 seconds.", time:"Sep 27", revision:"Approved" },
+  ]},
+  { id:"col_02", brand:"Dune & Co. Resorts", campaign:"Desert Weekends", deliverables:"2 reels + 6 stories", dueDate:"2026-10-20", currentStep:2, source:{type:"opportunity",id:"opp_01"}, messages:[
+    { id:"m1", from:"brand", text:"Thrilled to have you. Stay dates confirmed for Oct 8–10.", time:"Sep 26" },
+    { id:"m2", from:"creator", text:"Shot list shared. Planning a sunrise dune sequence for reel one.", time:"Sep 27", revision:"Approved" },
+  ]},
+];
+export const collabFor = (type:"inquiry"|"opportunity", id:string) => collaborations.find(c=>c.source.type===type&&c.source.id===id);
