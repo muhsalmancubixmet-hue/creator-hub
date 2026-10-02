@@ -50,8 +50,8 @@ const titles: Record<PageKey,{title:string; subtitle:string}> = {
 
 export function CreatorWorkspace({ page, children }: { page: PageKey; children?: ReactNode }) {
  const navigate=useNavigate(); const [authed,setAuthed]=useState(false); useEffect(()=>{ if(!demoAuth.isSignedIn()) void navigate({to:"/login",replace:true}); else setAuthed(true); },[navigate]);
- if(!authed) return <div className="grid min-h-screen place-items-center bg-background"><span className="size-8 animate-spin rounded-full border-2 border-coral border-t-transparent" aria-label="Loading"/></div>;
  const [mobileOpen,setMobileOpen]=useState(false); const [searchOpen,setSearchOpen]=useState(false); const [noticeOpen,setNoticeOpen]=useState(false);
+ if(!authed) return <div className="grid min-h-screen place-items-center bg-background"><span className="size-8 animate-spin rounded-full border-2 border-coral border-t-transparent" aria-label="Loading"/></div>;
  return <div className="min-h-screen bg-background text-foreground">
   <CreatorSidebar />
   <div className="min-w-0 lg:pl-[248px]">
