@@ -12,14 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as InquiriesRouteImport } from './routes/inquiries'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaKitRouteImport } from './routes/media-kit'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SocialMediaRouteImport } from './routes/social-media'
 import { Route as WebsiteRouteImport } from './routes/website'
+import { Route as CollabsIdRouteImport } from './routes/collabs.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,6 +37,11 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
 const InquiriesRoute = InquiriesRouteImport.update({
   id: '/inquiries',
   path: '/inquiries',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MediaKitRoute = MediaKitRouteImport.update({
@@ -66,6 +74,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SocialMediaRoute = SocialMediaRouteImport.update({
   id: '/social-media',
   path: '/social-media',
@@ -76,46 +89,60 @@ const WebsiteRoute = WebsiteRouteImport.update({
   path: '/website',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollabsIdRoute = CollabsIdRouteImport.update({
+  id: '/collabs/$id',
+  path: '/collabs/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/inquiries': typeof InquiriesRoute
+  '/login': typeof LoginRoute
   '/media-kit': typeof MediaKitRoute
   '/opportunities': typeof OpportunitiesRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
   '/website': typeof WebsiteRoute
+  '/collabs/$id': typeof CollabsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/inquiries': typeof InquiriesRoute
+  '/login': typeof LoginRoute
   '/media-kit': typeof MediaKitRoute
   '/opportunities': typeof OpportunitiesRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
   '/website': typeof WebsiteRoute
+  '/collabs/$id': typeof CollabsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/inquiries': typeof InquiriesRoute
+  '/login': typeof LoginRoute
   '/media-kit': typeof MediaKitRoute
   '/opportunities': typeof OpportunitiesRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
   '/website': typeof WebsiteRoute
+  '/collabs/$id': typeof CollabsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,54 +150,66 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/inquiries'
+    | '/login'
     | '/media-kit'
     | '/opportunities'
     | '/portfolio'
     | '/profile'
     | '/services'
     | '/settings'
+    | '/signup'
     | '/social-media'
     | '/website'
+    | '/collabs/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/analytics'
     | '/inquiries'
+    | '/login'
     | '/media-kit'
     | '/opportunities'
     | '/portfolio'
     | '/profile'
     | '/services'
     | '/settings'
+    | '/signup'
     | '/social-media'
     | '/website'
+    | '/collabs/$id'
   id:
     | '__root__'
     | '/'
     | '/analytics'
     | '/inquiries'
+    | '/login'
     | '/media-kit'
     | '/opportunities'
     | '/portfolio'
     | '/profile'
     | '/services'
     | '/settings'
+    | '/signup'
     | '/social-media'
     | '/website'
+    | '/collabs/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   InquiriesRoute: typeof InquiriesRoute
+  LoginRoute: typeof LoginRoute
   MediaKitRoute: typeof MediaKitRoute
   OpportunitiesRoute: typeof OpportunitiesRoute
   PortfolioRoute: typeof PortfolioRoute
   ProfileRoute: typeof ProfileRoute
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
+  SignupRoute: typeof SignupRoute
   SocialMediaRoute: typeof SocialMediaRoute
   WebsiteRoute: typeof WebsiteRoute
+  CollabsIdRoute: typeof CollabsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -194,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/inquiries'
       fullPath: '/inquiries'
       preLoaderRoute: typeof InquiriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/media-kit': {
@@ -238,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/social-media': {
       id: '/social-media'
       path: '/social-media'
@@ -252,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WebsiteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collabs/$id': {
+      id: '/collabs/$id'
+      path: '/collabs/$id'
+      fullPath: '/collabs/$id'
+      preLoaderRoute: typeof CollabsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -259,14 +319,17 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   InquiriesRoute: InquiriesRoute,
+  LoginRoute: LoginRoute,
   MediaKitRoute: MediaKitRoute,
   OpportunitiesRoute: OpportunitiesRoute,
   PortfolioRoute: PortfolioRoute,
   ProfileRoute: ProfileRoute,
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
+  SignupRoute: SignupRoute,
   SocialMediaRoute: SocialMediaRoute,
   WebsiteRoute: WebsiteRoute,
+  CollabsIdRoute: CollabsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
