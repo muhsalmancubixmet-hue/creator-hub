@@ -61,7 +61,7 @@ const titles: Record<PageKey,{title:string; subtitle:string}> = {
  settings:{title:"Settings",subtitle:"Manage your workspace, visibility and security."},
 };
 
-export function CreatorWorkspace({ page, children }: { page: PageKey; children?: ReactNode }) {
+export function CreatorWorkspace({ page = "dashboard", children, applyCampaignId }: { page?: PageKey; children?: ReactNode; applyCampaignId?: string }) {
   const [authed, setAuthed] = useState(() =>
     typeof window !== "undefined" ? (demoAuth.isSignedIn() || authService.isAuthenticated()) : false
   );
@@ -89,14 +89,14 @@ export function CreatorWorkspace({ page, children }: { page: PageKey; children?:
   }
  return (
   <CreatorProfileProvider>
-   <CreatorWorkspaceLayout page={page}>
+   <CreatorWorkspaceLayout page={page} applyCampaignId={applyCampaignId}>
     {children}
    </CreatorWorkspaceLayout>
   </CreatorProfileProvider>
  );
 }
 
-function CreatorWorkspaceLayout({ page, children }: { page: PageKey; children?: ReactNode }) {
+function CreatorWorkspaceLayout({ page, children, applyCampaignId }: { page: PageKey; children?: ReactNode; applyCampaignId?: string }) {
  const [mobileOpen,setMobileOpen]=useState(false); const [searchOpen,setSearchOpen]=useState(false); const [noticeOpen,setNoticeOpen]=useState(false);
  return (
   <div className="min-h-screen bg-background text-foreground">
@@ -105,7 +105,7 @@ function CreatorWorkspaceLayout({ page, children }: { page: PageKey; children?: 
     <CreatorHeader page={page} onMenu={()=>setMobileOpen(true)} onSearch={()=>setSearchOpen(true)} onNotices={()=>setNoticeOpen(true)} />
     <main className="mx-auto max-w-[1440px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-7">
      {page==="dashboard"&&<Dashboard/>}{page==="profile"&&<ProfilePage/>}{page==="social"&&<SocialPage/>}{page==="portfolio"&&<PortfolioPage/>}
-     {page==="services"&&<ServicesPage/>}{page==="website"&&<WebsitePage/>}{page==="media-kit"&&<MediaKitPage/>}{page==="opportunities"&&<OpportunitiesPage/>}
+     {page==="services"&&<ServicesPage/>}{page==="website"&&<WebsitePage/>}{page==="media-kit"&&<MediaKitPage/>}{page==="opportunities"&&<OpportunitiesPage initialApplyId={applyCampaignId}/>}
      {page==="inquiries"&&<InquiriesPage/>}{page==="analytics"&&<AnalyticsPage/>}{page==="settings"&&<SettingsPage/>}{page==="collab"&&children}
     </main>
    </div>
@@ -225,7 +225,83 @@ function Dashboard(){
 
  return <div className="space-y-7"><div className="grid gap-1"><p className="text-xs font-bold text-coral">CREATOR OVERVIEW</p><h2 className="font-display text-3xl sm:text-4xl">Good morning, {firstName}.</h2></div><ProfileCompletion/><div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0 xl:grid-cols-4">{dynamicStats.map((s,i)=><StatCard key={s.label} s={s} index={i}/>)}</div><div className="grid gap-6 xl:grid-cols-[1.4fr_.8fr]"><WebsitePrompt/><ProfilePreview/></div><div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]"><div><SectionHead eyebrow="FRESH MATCHES" title="Made for your audience" action={<Button variant="ghost" asChild><Link to="/opportunities">View all <ArrowRight/></Link></Button>}/>{opportunities.length > 0 ? (<div className="grid gap-3 sm:grid-cols-2">{opportunities.slice(0,2).map(o=><CampaignCard key={o.id} item={o}/>)}</div>) : (<div className="creator-card p-6 text-center"><p className="text-sm font-semibold text-muted-foreground">No open opportunities currently match your profile. Check back soon or explore the marketplace.</p><Button variant="outline" size="sm" asChild className="mt-4"><Link to="/opportunities">Explore Marketplace <ArrowRight/></Link></Button></div>)}</div><div><SectionHead eyebrow="LATEST" title="Recent inquiries" action={<Button variant="ghost" asChild><Link to="/inquiries">Inbox <ArrowRight/></Link></Button>}/>{inquiries.length > 0 ? (<div className="creator-card divide-y">{inquiries.slice(0,3).map(i=><div key={i.id} className="flex gap-3 p-4"><span className="grid size-9 shrink-0 place-items-center rounded-md bg-teal-soft text-xs font-black text-teal">{i.business.slice(0,2).toUpperCase()}</span><div className="min-w-0"><p className="truncate text-xs font-bold">{i.business}</p><p className="truncate text-xs text-muted-foreground">{i.campaign}</p></div><span className="ml-auto text-[10px] text-muted-foreground">{i.date.split(",")[0]}</span></div>)}</div>) : (<div className="creator-card p-6 text-center"><p className="text-sm font-semibold text-muted-foreground">No brand inquiries yet. Complete your profile and share your media kit to receive brand pitches.</p><Button variant="outline" size="sm" asChild className="mt-4"><Link to="/profile">Complete Profile <ArrowRight/></Link></Button></div>)}</div></div></div>;
 }
-function WebsitePrompt(){return <div className="creator-card relative min-h-[300px] overflow-hidden bg-coral-soft p-6 sm:p-8"><div className="absolute right-[-4%] top-[-20%] size-64 rotate-12 rounded-full border-[34px] border-coral/10"/><Badge tone="coral"><Globe2 className="size-3"/>YOUR SPACE, YOUR STORY</Badge><h2 className="mt-5 max-w-lg font-display text-3xl sm:text-4xl">Create your professional influencer website</h2><p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">Turn your profile, portfolio, social media, and services into a professional website.</p><Button asChild className="mt-6"><Link to="/website">Create My Website <ArrowRight/></Link></Button></div>}
+function WebsitePrompt() {
+  const { profile } = useCurrentCreator();
+  const [websiteStatus, setWebsiteStatus] = useState<string>(profile.websiteStatus || "none");
+
+  useEffect(() => {
+    creatorApi.getWebsite()
+      .then((data: any) => {
+        if (data && (data.is_published || data.status === "PUBLISHED")) {
+          setWebsiteStatus("published");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const isLive = websiteStatus === "published" || profile.websiteStatus === "published";
+  const cleanHandle = (profile.handle || profile.name || "creator")
+    .replace(/^@/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+  const displayDomain = `${cleanHandle}.influencers.com`;
+  const liveTargetUrl = profile.websiteUrl?.startsWith("http")
+    ? profile.websiteUrl
+    : `http://localhost:8082/creator/${cleanHandle}`;
+
+  const handleOpenWebsite = () => {
+    window.open(liveTargetUrl, "_blank", "noopener,noreferrer");
+  };
+
+  if (isLive) {
+    return (
+      <div className="creator-card relative min-h-[300px] overflow-hidden bg-teal-soft/60 border border-teal/20 p-6 sm:p-8 flex flex-col justify-between">
+        <div className="absolute right-[-4%] top-[-20%] size-64 rotate-12 rounded-full border-[34px] border-teal/10 pointer-events-none" />
+        <div>
+          <div className="flex items-center gap-2">
+            <Badge tone="teal"><Globe2 className="size-3" />YOUR SPACE, YOUR STORY</Badge>
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              WEBSITE IS LIVE
+            </span>
+          </div>
+          <h2 className="mt-4 max-w-lg font-display text-3xl sm:text-4xl">Your influencer website is live</h2>
+          <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+            Your portfolio, bio, social media stats, and booking services are live for brand partners at:
+          </p>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-card/80 px-3 py-1.5 border text-xs font-mono font-medium shadow-sm">
+            <Globe2 className="size-3.5 text-teal" />
+            <span className="font-bold text-foreground">{displayDomain}</span>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <Button onClick={handleOpenWebsite} className="bg-teal hover:bg-teal/90 text-primary-foreground gap-2">
+            <ExternalLink className="size-4" /> View Website
+          </Button>
+          <Button variant="outline" asChild className="gap-2">
+            <Link to="/website">
+              <Pencil className="size-4" /> Manage Website
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="creator-card relative min-h-[300px] overflow-hidden bg-coral-soft p-6 sm:p-8">
+      <div className="absolute right-[-4%] top-[-20%] size-64 rotate-12 rounded-full border-[34px] border-coral/10" />
+      <Badge tone="coral"><Globe2 className="size-3" />YOUR SPACE, YOUR STORY</Badge>
+      <h2 className="mt-5 max-w-lg font-display text-3xl sm:text-4xl">Create your professional influencer website</h2>
+      <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
+        Turn your profile, portfolio, social media, and services into a professional website.
+      </p>
+      <Button asChild className="mt-6">
+        <Link to="/website">Create My Website <ArrowRight className="size-4" /></Link>
+      </Button>
+    </div>
+  );
+}
 function ProfilePreview({ locationOverride }: { locationOverride?: string } = {}){
  const { profile } = useCurrentCreator();
  return <div className="creator-card overflow-hidden"><div className="relative h-28"><CreatorCover src={profile.cover} /><span className="absolute inset-0 bg-primary/20"/></div><div className="relative px-5 pb-5"><CreatorAvatar src={profile.photo} name={profile.name} className="-mt-10 size-20 rounded-md border-4 border-card object-cover" fallbackClassName="text-xl font-black"/><div className="mt-3 flex items-start justify-between gap-3"><div><h3 className="flex items-center gap-1 text-lg font-extrabold">{profile.name}{profile.verified&&<BadgeCheck className="size-4 text-teal"/>}</h3><p className="text-xs text-muted-foreground">{profile.category}</p></div>{profile.verified?<Badge tone="teal">VERIFIED</Badge>:<Badge tone="neutral">UNVERIFIED</Badge>}</div><p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="size-3"/>{locationOverride || profile.location || "Remote / Worldwide"}</p><div className="mt-5 flex items-center gap-2"><Button className="flex-1" asChild><Link to="/profile">View Profile</Link></Button><Button variant="outline" size="icon" onClick={()=>toast.success("Public link copied")}><Link2/></Button></div></div></div>;
@@ -1435,18 +1511,57 @@ function OpportunityApplyModal({ apply, onClose, onApplied }: { apply: Workspace
   );
 }
 
-function OpportunitiesPage(){
+function OpportunitiesPage({ initialApplyId }: { initialApplyId?: string } = {}) {
   const { opportunities, refreshOpportunities } = useCurrentCreator();
-  const [apply,setApply]=useState<WorkspaceOpportunityItem|null>(null);
-  const [view,setView]=useState<"list"|"map"|"split">("split");
-  const [search,setSearch]=useState("");
-  const [cat,setCat]=useState("all");
-  const [budgetTier,setBudgetTier]=useState("all");
-  const [plat,setPlat]=useState("all");
-  const [loc,setLoc]=useState<Place|null>(null);
-  const [radius,setRadius]=useState(100);
-  const [filtersOpen,setFiltersOpen]=useState(false);
-  const [focus,setFocus]=useState<string|null>(null);
+  const [apply, setApply] = useState<WorkspaceOpportunityItem | null>(null);
+  const [view, setView] = useState<"list" | "map" | "split">("split");
+  const [search, setSearch] = useState("");
+  const [cat, setCat] = useState("all");
+  const [budgetTier, setBudgetTier] = useState("all");
+  const [plat, setPlat] = useState("all");
+  const [loc, setLoc] = useState<Place | null>(null);
+  const [radius, setRadius] = useState(100);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [focus, setFocus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialApplyId) {
+      const target = opportunities.find(o => o.id === initialApplyId);
+      if (target) {
+        setApply(target);
+      } else {
+        creatorApi.getOpportunities({ id: initialApplyId }).then((res: any) => {
+          const list = Array.isArray(res) ? res : (res?.results || []);
+          const item = list.find((x: any) => String(x.id) === initialApplyId) || list[0];
+          if (item) {
+            const budgetNum = typeof item.budget === "number" ? item.budget : (item.total_budget_cents ? item.total_budget_cents / 100 : 500);
+            setApply({
+              id: String(item.id),
+              name: item.title || item.name || "Campaign Opportunity",
+              business: item.business || item.business_name || "Partner Brand",
+              category: item.category || item.category_name || "General",
+              place: {
+                id: `loc_${item.id}`,
+                name: item.location || item.location_text || "Kerala, India",
+                level: "city",
+                country: "India",
+                countryCode: "IN",
+                lat: typeof item.lat === "number" ? item.lat : 9.9312,
+                lng: typeof item.lng === "number" ? item.lng : 76.2673,
+              },
+              remote: false,
+              platform: item.platform || "Instagram",
+              deliverables: item.deliverables || item.deliverables_spec || "Campaign deliverables",
+              budget: { min: item.budget?.min ?? budgetNum, max: item.budget?.max ?? budgetNum, currency: item.currency || "INR" },
+              deadline: item.deadline ? new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Open",
+              creators: item.creators || item.creators_needed || 1,
+              match: 95,
+            });
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [initialApplyId, opportunities]);
 
   const results = useMemo(() => {
     return opportunities.filter(o => {

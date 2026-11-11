@@ -39,28 +39,64 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+
+  const isDynamicImportError =
+    error?.message?.includes("Failed to fetch dynamically imported module") ||
+    error?.message?.includes("Importing a module script failed") ||
+    error?.message?.includes("dynamically imported module");
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  useEffect(() => {
+    if (isDynamicImportError && typeof window !== "undefined") {
+      const key = "tsr_dynamic_import_reload";
+      const lastReload = Number(sessionStorage.getItem(key) || 0);
+      const now = Date.now();
+      if (now - lastReload > 10000) {
+        sessionStorage.setItem(key, String(now));
+        window.location.reload();
+      }
+    }
+  }, [isDynamicImportError]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          {isDynamicImportError ? "Updating application..." : "This page didn't load"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {isDynamicImportError
+            ? "A newer version or component bundle was updated. Refreshing your session..."
+            : "Something went wrong on our end. You can try refreshing or head back home."}
         </p>
+        {error && (
+          <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-left">
+            <p className="font-mono text-xs font-semibold text-destructive break-words">
+              {error.message || String(error)}
+            </p>
+            {error.stack && (
+              <pre className="mt-2 max-h-40 overflow-auto font-mono text-[10px] text-muted-foreground whitespace-pre-wrap">
+                {error.stack}
+              </pre>
+            )}
+          </div>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
-              router.invalidate();
-              reset();
+              if (isDynamicImportError && typeof window !== "undefined") {
+                window.location.reload();
+              } else {
+                router.invalidate();
+                reset();
+              }
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            {isDynamicImportError ? "Reload page" : "Try again"}
           </button>
           <a
             href="/"
@@ -114,6 +150,22 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPreloadError = (e: Event) => {
+      e.preventDefault();
+      const key = "vite_preload_reload";
+      const lastReload = Number(sessionStorage.getItem(key) || 0);
+      const now = Date.now();
+      if (now - lastReload > 10000) {
+        sessionStorage.setItem(key, String(now));
+        window.location.reload();
+      }
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    return () => window.removeEventListener("vite:preloadError", onPreloadError);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

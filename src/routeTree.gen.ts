@@ -17,12 +17,15 @@ import { Route as MediaKitRouteImport } from './routes/media-kit'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RevokeRouteImport } from './routes/revoke'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SocialMediaRouteImport } from './routes/social-media'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as WebsiteRouteImport } from './routes/website'
 import { Route as CollabsIdRouteImport } from './routes/collabs.$id'
+import { Route as CampaignsCampaignIdApplyRouteImport } from './routes/campaigns.$campaignId.apply'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +67,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RevokeRoute = RevokeRouteImport.update({
+  id: '/revoke',
+  path: '/revoke',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
@@ -84,6 +92,11 @@ const SocialMediaRoute = SocialMediaRouteImport.update({
   path: '/social-media',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WebsiteRoute = WebsiteRouteImport.update({
   id: '/website',
   path: '/website',
@@ -94,6 +107,12 @@ const CollabsIdRoute = CollabsIdRouteImport.update({
   path: '/collabs/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsCampaignIdApplyRoute =
+  CampaignsCampaignIdApplyRouteImport.update({
+    id: '/campaigns/$campaignId/apply',
+    path: '/campaigns/$campaignId/apply',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -104,12 +123,15 @@ export interface FileRoutesByFullPath {
   '/opportunities': typeof OpportunitiesRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
+  '/revoke': typeof RevokeRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/website': typeof WebsiteRoute
   '/collabs/$id': typeof CollabsIdRoute
+  '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -120,12 +142,15 @@ export interface FileRoutesByTo {
   '/opportunities': typeof OpportunitiesRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
+  '/revoke': typeof RevokeRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/website': typeof WebsiteRoute
   '/collabs/$id': typeof CollabsIdRoute
+  '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,12 +162,15 @@ export interface FileRoutesById {
   '/opportunities': typeof OpportunitiesRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
+  '/revoke': typeof RevokeRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/website': typeof WebsiteRoute
   '/collabs/$id': typeof CollabsIdRoute
+  '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,12 +183,15 @@ export interface FileRouteTypes {
     | '/opportunities'
     | '/portfolio'
     | '/profile'
+    | '/revoke'
     | '/services'
     | '/settings'
     | '/signup'
     | '/social-media'
+    | '/verify-email'
     | '/website'
     | '/collabs/$id'
+    | '/campaigns/$campaignId/apply'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -171,12 +202,15 @@ export interface FileRouteTypes {
     | '/opportunities'
     | '/portfolio'
     | '/profile'
+    | '/revoke'
     | '/services'
     | '/settings'
     | '/signup'
     | '/social-media'
+    | '/verify-email'
     | '/website'
     | '/collabs/$id'
+    | '/campaigns/$campaignId/apply'
   id:
     | '__root__'
     | '/'
@@ -187,12 +221,15 @@ export interface FileRouteTypes {
     | '/opportunities'
     | '/portfolio'
     | '/profile'
+    | '/revoke'
     | '/services'
     | '/settings'
     | '/signup'
     | '/social-media'
+    | '/verify-email'
     | '/website'
     | '/collabs/$id'
+    | '/campaigns/$campaignId/apply'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -204,12 +241,15 @@ export interface RootRouteChildren {
   OpportunitiesRoute: typeof OpportunitiesRoute
   PortfolioRoute: typeof PortfolioRoute
   ProfileRoute: typeof ProfileRoute
+  RevokeRoute: typeof RevokeRoute
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   SocialMediaRoute: typeof SocialMediaRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   WebsiteRoute: typeof WebsiteRoute
   CollabsIdRoute: typeof CollabsIdRoute
+  CampaignsCampaignIdApplyRoute: typeof CampaignsCampaignIdApplyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -270,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/revoke': {
+      id: '/revoke'
+      path: '/revoke'
+      fullPath: '/revoke'
+      preLoaderRoute: typeof RevokeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/services': {
       id: '/services'
       path: '/services'
@@ -298,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/website': {
       id: '/website'
       path: '/website'
@@ -312,6 +366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollabsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns/$campaignId/apply': {
+      id: '/campaigns/$campaignId/apply'
+      path: '/campaigns/$campaignId/apply'
+      fullPath: '/campaigns/$campaignId/apply'
+      preLoaderRoute: typeof CampaignsCampaignIdApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -324,12 +385,15 @@ const rootRouteChildren: RootRouteChildren = {
   OpportunitiesRoute: OpportunitiesRoute,
   PortfolioRoute: PortfolioRoute,
   ProfileRoute: ProfileRoute,
+  RevokeRoute: RevokeRoute,
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   SocialMediaRoute: SocialMediaRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   WebsiteRoute: WebsiteRoute,
   CollabsIdRoute: CollabsIdRoute,
+  CampaignsCampaignIdApplyRoute: CampaignsCampaignIdApplyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
