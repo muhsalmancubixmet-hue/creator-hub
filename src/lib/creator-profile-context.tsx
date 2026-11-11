@@ -173,8 +173,8 @@ function buildFallbackFromEmail(email: string): CreatorProfileData {
     creatorType: "Content Creator",
     languageCodes: ["en"],
     timezone: "UTC",
-    profileUrl: `influencers.com/${namePart}`,
-    websiteUrl: `${namePart}.influencers.com`,
+    profileUrl: `http://localhost:8082/creator/${namePart}`,
+    websiteUrl: `http://localhost:8082/creator/${namePart}`,
     views_count: 0,
   };
 }
@@ -247,8 +247,8 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
           creatorType: data.creator_type || "Content Creator",
           languageCodes: Array.isArray(data.languages) ? data.languages.map((l: any) => l.language_code) : ["en"],
           timezone: data.timezone || "UTC",
-          profileUrl: `influencers.com/${rawHandle.replace(/^@/, "")}`,
-          websiteUrl: `${rawHandle.replace(/^@/, "")}.influencers.com`,
+          profileUrl: `http://localhost:8082/creator/${rawHandle.replace(/^@/, "")}`,
+          websiteUrl: `http://localhost:8082/creator/${rawHandle.replace(/^@/, "")}`,
           views_count: typeof data.views_count === "number" ? data.views_count : 0,
           mfa_enabled: !!data.mfa_enabled,
           preferences: data.preferences || {},

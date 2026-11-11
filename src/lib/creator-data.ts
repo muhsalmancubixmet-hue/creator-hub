@@ -24,7 +24,7 @@ export const creator = {
   photo: creatorPhoto, cover: backwaters, bio: "Slow travel, street food and places worth crossing the world for.",
   about: "I create vivid, thoughtful stories around places, plates and people. My work helps travel and lifestyle brands feel local, useful and beautifully human — wherever they are.",
   languages: ["English", "Hindi", "Malayalam"], creatorType: "Lifestyle & Travel Creator",
-  email: "hello@ananyaexplores.com", profileUrl: "influencers.com/ananyaexplores", websiteUrl: "ananya.influencers.com",
+  email: "hello@ananyaexplores.com", profileUrl: "http://localhost:8082/creator/ananya", websiteUrl: "http://localhost:8082/creator/ananya",
 };
 
 export const stats = [

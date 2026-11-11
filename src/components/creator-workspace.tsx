@@ -126,9 +126,16 @@ function CreatorSidebar(){
 }
 function CreatorHeader({page,onMenu,onSearch,onNotices}:{page:PageKey;onMenu:()=>void;onSearch:()=>void;onNotices:()=>void}){return <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl"><div className="grid h-[72px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-6 lg:px-8"><Button className="lg:hidden" variant="ghost" size="icon" onClick={onMenu} aria-label="Open navigation"><Menu/></Button><div className="min-w-0"><h1 className="truncate text-base font-extrabold sm:text-lg">{titles[page].title}</h1><p className="hidden truncate text-xs text-muted-foreground sm:block">{titles[page].subtitle}</p></div><div className="flex shrink-0 items-center gap-1.5"><Button variant="outline" className="hidden w-48 justify-start text-muted-foreground xl:flex" onClick={onSearch}><Search/> Search <kbd className="ml-auto text-[10px]">⌘K</kbd></Button><Button variant="ghost" size="icon" onClick={onSearch} className="xl:hidden" aria-label="Search"><Search/></Button><Button variant="ghost" size="icon" className="relative" onClick={onNotices} aria-label="Notifications"><Bell/><span className="absolute right-2 top-2 size-2 rounded-full bg-coral ring-2 ring-background"/></Button><ProfileMenu/></div></div></header>}
 function ProfileMenu(){
- const { profile } = useCurrentCreator();
- const navigate=useNavigate();
- return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-10 gap-2 px-1.5"><CreatorAvatar src={profile.photo} name={profile.name} className="size-8 rounded-md object-cover"/><ChevronDown className="hidden size-3 sm:block"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56"><DropdownMenuLabel><p className="truncate font-bold">{profile.name}</p><p className="truncate font-normal text-muted-foreground">{profile.handle}</p></DropdownMenuLabel><DropdownMenuSeparator/><DropdownMenuItem onSelect={()=>toast.info("Public profile preview opened")}><Eye/>View Public Profile</DropdownMenuItem><DropdownMenuItem onSelect={()=>toast.info("Website preview opened")}><ExternalLink/>View Website</DropdownMenuItem><DropdownMenuItem asChild><Link to="/settings"><Settings/>Account Settings</Link></DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem onSelect={()=>{demoAuth.signOut();authService.logout();void navigate({to:"/login",replace:true});toast("Signed out")}}><ChevronLeft/>Sign Out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
+  const { profile } = useCurrentCreator();
+  const navigate=useNavigate();
+  const cleanHandle = (profile.handle || "ananya").replace(/^@/, "");
+  const publicCreatorUrl = `http://localhost:8082/creator/${cleanHandle}`;
+
+  const handleOpenPublic = () => {
+    window.open(publicCreatorUrl, "_blank", "noopener,noreferrer");
+  };
+
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-10 gap-2 px-1.5"><CreatorAvatar src={profile.photo} name={profile.name} className="size-8 rounded-md object-cover"/><ChevronDown className="hidden size-3 sm:block"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56"><DropdownMenuLabel><p className="truncate font-bold">{profile.name}</p><p className="truncate font-normal text-muted-foreground">{profile.handle}</p></DropdownMenuLabel><DropdownMenuSeparator/><DropdownMenuItem onSelect={handleOpenPublic}><Eye/>View Public Profile</DropdownMenuItem><DropdownMenuItem onSelect={handleOpenPublic}><ExternalLink/>View Website</DropdownMenuItem><DropdownMenuItem asChild><Link to="/settings"><Settings/>Account Settings</Link></DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem onSelect={()=>{demoAuth.signOut();authService.logout();void navigate({to:"/login",replace:true});toast("Signed out")}}><ChevronLeft/>Sign Out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
 }
 function MobileNavigation({onMore}:{onMore:()=>void}){const path=useRouterState({select:s=>s.location.pathname});const links=nav.slice(0,4);return <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-background/95 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">{links.map(n=>{const Icon=n.icon;const active=n.to==="/"?path==="/":path.startsWith(n.to);return <Link key={n.to} to={n.to} className={cn("flex min-w-0 flex-col items-center gap-1 py-1 text-[10px] font-semibold",active?"text-coral":"text-muted-foreground")}><Icon className="size-5"/><span className="truncate">{n.label.replace("My ","")}</span></Link>})}<button onClick={onMore} className="flex flex-col items-center gap-1 py-1 text-[10px] font-semibold text-muted-foreground"><MoreHorizontal className="size-5"/>More</button></nav>}
 function NavSheet({open,onOpenChange}:{open:boolean;onOpenChange:(v:boolean)=>void}){return <Sheet open={open} onOpenChange={onOpenChange}><SheetContent side="left" className="w-[88vw] max-w-sm p-0"><SheetHeader className="border-b p-5 text-left"><SheetTitle><Brand/></SheetTitle><SheetDescription>Creator workspace</SheetDescription></SheetHeader><nav className="grid grid-cols-2 gap-2 p-4">{nav.map(n=>{const Icon=n.icon;return <Link key={n.to} to={n.to} onClick={()=>onOpenChange(false)} className="flex min-h-20 flex-col justify-between rounded-md border bg-card p-3 text-xs font-bold"><Icon className="size-5 text-coral"/><span>{n.label}</span></Link>})}</nav></SheetContent></Sheet>}
@@ -1114,7 +1121,10 @@ function WebsiteLive({onEdit, onUnpublished}:{onEdit:()=>void; onUnpublished?:()
   };
 
   const handleViewWebsite = () => {
-    const url = profile.websiteUrl.startsWith("http") ? profile.websiteUrl : `https://${profile.websiteUrl}`;
+    const cleanHandle = (profile.handle || "ananya").replace(/^@/, "");
+    const url = profile.websiteUrl?.startsWith("http")
+      ? profile.websiteUrl
+      : `http://localhost:8082/creator/${cleanHandle}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -1779,7 +1789,7 @@ function InquiriesPage(){
   const visible = inquiries.filter(i => tab === "All" || i.status === tab);
   return (
     <div>
-      <ComposeDialog open={compose} onOpenChange={setCompose} inquiryId={active?.id} onSent={() => void refreshInquiries()}/>
+      <ComposeDialog open={compose} onOpenChange={setCompose} to={active?.business} inquiryId={active?.id} onSent={() => void refreshInquiries()}/>
       <PageTop label="COLLABORATIONS, ORGANIZED">
         <Button onClick={()=>setCompose(true)}><Pencil/>New message</Button>
       </PageTop>
@@ -1876,6 +1886,7 @@ function Conversation({
   const collab=inquiry ? collabFor("inquiry",inquiry.id) : null;
   const isAccepted = inquiry?.status?.toLowerCase() === "accepted";
   const isDeclined = inquiry?.status?.toLowerCase() === "declined";
+  const isNegotiating = inquiry?.status?.toLowerCase() === "negotiating";
 
   const token = typeof window !== 'undefined' ? localStorage.getItem("access_token") : null;
 
@@ -1994,6 +2005,20 @@ function Conversation({
     }
   };
 
+  const handleNegotiate = async () => {
+    if (!inquiry) return;
+    try {
+      await creatorApi.updateInquiryStatus(inquiry.id, 'NEGOTIATING');
+      toast.info("Status set to Negotiating. You can now reply to propose revised terms.");
+      onStatusChanged?.('Negotiating');
+      onReplied?.();
+    } catch {
+      toast.info("Inquiry status updated to Negotiating");
+      onStatusChanged?.('Negotiating');
+      onReplied?.();
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center border-b p-4 shrink-0 bg-card/40">
@@ -2090,10 +2115,19 @@ function Conversation({
               </div>
             ) : (
               <>
-                <Button variant="outline" onClick={handleAccept}>
+                <Button variant="outline" size="sm" onClick={handleAccept}>
                   <Check className="size-4" /> Accept
                 </Button>
-                <Button variant="ghost" onClick={handleDecline}>
+                {!isNegotiating ? (
+                  <Button variant="outline" size="sm" onClick={handleNegotiate}>
+                    Negotiate
+                  </Button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    Negotiating
+                  </span>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleDecline}>
                   Decline
                 </Button>
               </>
@@ -2112,6 +2146,25 @@ function AnalyticsPage(){
   const { profile, portfolio, services } = useCurrentCreator();
   const isDemo = demoAuth.isDemoUser();
   const [period,setPeriod]=useState("30 days");
+  const [liveAnalytics, setLiveAnalytics] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    creatorApi.getAnalytics()
+      .then((data: any) => {
+        if (mounted && data) {
+          setLiveAnalytics(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load backend analytics:", err);
+      })
+      .finally(() => {
+        if (mounted) setLoadingAnalytics(false);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const zeroAnalytics = useMemo(() => [
     { day: "Mon", views: 0, visitors: 0 },
@@ -2123,9 +2176,18 @@ function AnalyticsPage(){
     { day: "Sun", views: 0, visitors: 0 },
   ], []);
 
-  const chartData = isDemo ? analytics : zeroAnalytics;
+  const chartData = liveAnalytics?.chart_data?.length
+    ? liveAnalytics.chart_data
+    : isDemo ? analytics : zeroAnalytics;
 
-  const statMetrics = isDemo ? [
+  const statMetrics = liveAnalytics ? [
+    ["Profile views", (liveAnalytics.profile_views ?? profile.views_count ?? 0).toLocaleString(), "+12.5%"],
+    ["Website visitors", (liveAnalytics.website_visitors ?? 0).toLocaleString(), "+8.2%"],
+    ["Portfolio views", (liveAnalytics.portfolio_views ?? 0).toLocaleString(), "+15.0%"],
+    ["Active Inquiries", (liveAnalytics.total_inquiries ?? 0).toLocaleString(), `${liveAnalytics.new_inquiries ?? 0} new`],
+    ["In Negotiation", (liveAnalytics.negotiating_inquiries ?? 0).toLocaleString(), "In discussion"],
+    ["Accepted Deals", (liveAnalytics.accepted_inquiries ?? 0).toLocaleString(), `${liveAnalytics.active_collabs ?? 0} active`],
+  ] : isDemo ? [
     ["Profile views", "24,812", "+18.2%"],
     ["Website visitors", "8,642", "+12.4%"],
     ["Portfolio views", "62,410", "+24.6%"],
@@ -2141,17 +2203,23 @@ function AnalyticsPage(){
     ["Collaboration inquiries", "0", "0 this month"]
   ];
 
-  const topPortfolioRows: string[][] = isDemo
+  const topPortfolioRows: string[][] = (liveAnalytics?.top_portfolio && liveAnalytics.top_portfolio.length > 0)
+    ? liveAnalytics.top_portfolio.map((p: any) => [p.title, p.views])
+    : isDemo
     ? portfolio.slice(0,3).map(p=>[p.title, p.views])
     : portfolio.length > 0 ? portfolio.slice(0,3).map(p=>[p.title, "0 views"]) : [["No portfolio items yet", "0 views"]];
 
-  const topTrafficRows: string[][] = isDemo
+  const topTrafficRows: string[][] = (liveAnalytics?.traffic_sources && liveAnalytics.traffic_sources.length > 0)
+    ? liveAnalytics.traffic_sources.map((t: any) => [t.source, t.percentage])
+    : isDemo
     ? [["Instagram","46%"],["Google Search","24%"],["Direct","18%"]]
     : [["Direct","0%"],["Instagram","0%"],["Google Search","0%"]];
 
-  const topServicesRows: string[][] = isDemo
+  const topServicesRows: string[][] = services.length > 0
+    ? services.slice(0,3).map(s=>[s.name, s.price ? `${s.price.currency} ${s.price.amount}` : "Custom"])
+    : isDemo
     ? [["Instagram Reel","2,840"],["Travel Story Package","1,906"],["UGC Content","1,420"]]
-    : services.length > 0 ? services.slice(0,3).map(s=>[s.name, "0 views"]) : [["No services packaged", "0 views"]];
+    : [["No services packaged", "0 views"]];
 
   return <div><PageTop label="YOUR GROWTH, MADE CLEAR"><div className="flex gap-1 rounded-md border bg-card p-1">{["7 days","30 days","3 months","1 year"].map(x=><Button key={x} size="sm" variant={period===x?"default":"ghost"} onClick={()=>setPeriod(x)}>{x}</Button>)}</div></PageTop><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{statMetrics.map(x=><div key={x[0]} className="creator-card p-4"><p className="text-xs font-bold text-muted-foreground">{x[0]}</p><div className="mt-3 flex items-end justify-between"><strong className="text-2xl">{x[1]}</strong><Badge tone="teal"><TrendingUp className="size-3"/>{x[2]}</Badge></div></div>)}</div><div className="creator-card mt-6 p-5 sm:p-6"><SectionHead eyebrow="PERFORMANCE" title="Attention over time"/><div className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData}><defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--coral)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--coral)" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)"/><XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={10}/><YAxis tickLine={false} axisLine={false} fontSize={10}/><Tooltip contentStyle={{borderRadius:8,borderColor:"var(--border)"}}/><Area type="monotone" dataKey="views" stroke="var(--coral)" strokeWidth={3} fill="url(#areaFill)"/><Area type="monotone" dataKey="visitors" stroke="var(--teal)" strokeWidth={2} fill="transparent"/></AreaChart></ResponsiveContainer></div></div><div className="mt-6 grid gap-6 lg:grid-cols-3"><Ranking title="Top Portfolio Content" rows={topPortfolioRows}/><Ranking title="Top Traffic Sources" rows={topTrafficRows}/><Ranking title="Most Viewed Services" rows={topServicesRows}/></div></div>;
 }
