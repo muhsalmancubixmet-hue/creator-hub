@@ -1799,6 +1799,20 @@ function CampaignCard({
   return (
     <div className="creator-card flex flex-col justify-between p-5 min-w-0">
       <div>
+        {Boolean(item.cover_image_url || item.image) && (
+          <div className="relative -mx-5 -mt-5 mb-4 h-36 overflow-hidden rounded-t-[calc(var(--radius)-1px)] bg-muted">
+            <img
+              src={item.cover_image_url || item.image}
+              alt={item.name}
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            <span className="absolute bottom-2 left-3 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
+              {item.business}
+            </span>
+          </div>
+        )}
         <div className="flex items-start justify-between gap-3">
           <span className="grid size-11 place-items-center rounded-xl bg-teal-soft font-display text-xl text-teal shrink-0">
             {item.business.charAt(0)}

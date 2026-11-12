@@ -19,3 +19,4 @@ function CampaignApplyRoute() {
   const { campaignId } = Route.useParams();
   return <CreatorWorkspace page="opportunities" applyCampaignId={campaignId} />;
 }
+

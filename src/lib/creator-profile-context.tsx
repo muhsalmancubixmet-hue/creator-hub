@@ -89,6 +89,8 @@ export interface WorkspaceOpportunityItem {
   deadline: string;
   creators: number;
   match: number;
+  cover_image_url?: string;
+  image?: string;
 }
 
 export interface WorkspaceInquiryItem {
@@ -348,6 +350,8 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
           deadline: item.deadline ? new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Open",
           creators: item.creators || item.creators_needed || 1,
           match: item.match || 95,
+          cover_image_url: item.cover_image_url || item.image || "",
+          image: item.cover_image_url || item.image || "",
         };
       });
       setOpportunities(mapped);
