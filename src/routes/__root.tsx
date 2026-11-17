@@ -4,15 +4,17 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useNavigate,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
+import { authService } from "@/lib/auth-service";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -44,10 +46,6 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     error?.message?.includes("Failed to fetch dynamically imported module") ||
     error?.message?.includes("Importing a module script failed") ||
     error?.message?.includes("dynamically imported module");
-
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   useEffect(() => {
     if (isDynamicImportError && typeof window !== "undefined") {
@@ -124,7 +122,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap",
+      },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
@@ -148,8 +149,29 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+const PUBLIC_PATHS = ["/login", "/signup", "/verify-email", "/revoke"];
+
+/** Strict session guard: sends unauthenticated creators to /login */
+function useCreatorGuard(isPublic: boolean) {
+  const navigate = useNavigate();
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    if (isPublic) return;
+    if (authService.isAuthenticated()) {
+      setOk(true);
+    } else {
+      authService.logout();
+      void navigate({ to: "/login", replace: true });
+    }
+  }, [isPublic, navigate]);
+  return ok;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const authed = useCreatorGuard(isPublic);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -167,9 +189,28 @@ function RootComponent() {
     return () => window.removeEventListener("vite:preloadError", onPreloadError);
   }, []);
 
+  if (isPublic) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    );
+  }
+
+  if (!authed) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <span
+          className="size-8 animate-spin rounded-full border-2 border-coral border-t-transparent"
+          aria-label="Authenticating creator..."
+        />
+      </div>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster richColors position="top-right" />
     </QueryClientProvider>

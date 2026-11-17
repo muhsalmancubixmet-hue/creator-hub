@@ -42,7 +42,10 @@ function RevokePage() {
       } catch (err: any) {
         if (!isMounted) return;
         const detail = err.response?.data?.detail;
-        const msg = typeof detail === "object" ? JSON.stringify(detail) : (detail || "Invalid or expired revocation link.");
+        const msg =
+          typeof detail === "object"
+            ? JSON.stringify(detail)
+            : detail || "Invalid or expired revocation link.";
         setStatus("error");
         setErrorMessage(msg);
       }
@@ -83,7 +86,8 @@ function RevokePage() {
             </span>
             <h2 className="font-display text-2xl font-bold">Registration Revoked</h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              The pending account associated with this email has been cancelled and deactivated. No further action is required.
+              The pending account associated with this email has been cancelled and deactivated. No
+              further action is required.
             </p>
             <div className="pt-4">
               <Button asChild className="w-full bg-coral text-primary-foreground hover:bg-coral/90">
@@ -99,9 +103,7 @@ function RevokePage() {
               <AlertCircle className="size-7" />
             </span>
             <h2 className="font-display text-2xl font-bold">Revocation Link Invalid</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {errorMessage}
-            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{errorMessage}</p>
             <div className="pt-4">
               <Button asChild variant="outline" className="w-full">
                 <Link to="/login">Return to Sign In</Link>

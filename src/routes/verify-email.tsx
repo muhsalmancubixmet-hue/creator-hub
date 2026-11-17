@@ -31,7 +31,9 @@ function VerifyEmailPage() {
       if (!token) {
         if (isMounted) {
           setStatus("error");
-          setErrorMessage("No verification token found in URL. Please use the link provided in your email.");
+          setErrorMessage(
+            "No verification token found in URL. Please use the link provided in your email.",
+          );
         }
         return;
       }
@@ -62,7 +64,7 @@ function VerifyEmailPage() {
             handle: user.handle || "creator",
             role: user.role || "CREATOR",
             profile_id: user.profile_id,
-          })
+          }),
         );
 
         setStatus("success");
@@ -72,11 +74,13 @@ function VerifyEmailPage() {
         setTimeout(() => {
           void navigate({ to: "/" });
         }, 1200);
-
       } catch (err: any) {
         if (!isMounted) return;
         const detail = err.response?.data?.detail;
-        const msg = typeof detail === "object" ? JSON.stringify(detail) : (detail || "Invalid or expired verification token.");
+        const msg =
+          typeof detail === "object"
+            ? JSON.stringify(detail)
+            : detail || "Invalid or expired verification token.";
         setStatus("error");
         setErrorMessage(msg);
         toast.error(msg);
@@ -129,9 +133,7 @@ function VerifyEmailPage() {
               <AlertCircle className="size-7" />
             </span>
             <h2 className="font-display text-2xl font-bold">Verification Failed</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {errorMessage}
-            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{errorMessage}</p>
             <div className="pt-4 flex flex-col gap-2.5">
               <Button asChild className="w-full bg-coral text-primary-foreground hover:bg-coral/90">
                 <Link to="/signup">Register Again</Link>

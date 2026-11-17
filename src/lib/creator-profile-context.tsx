@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { creatorApi } from "@/lib/creator-api";
 import { demoAuth } from "@/lib/demo-auth";
 import {
@@ -48,6 +55,7 @@ export interface CreatorProfileData {
   timezone: string;
   profileUrl: string;
   websiteUrl: string;
+  websiteStatus?: string;
   views_count?: number;
   mfa_enabled?: boolean;
   preferences?: CreatorPreferences;
@@ -175,8 +183,8 @@ function buildFallbackFromEmail(email: string): CreatorProfileData {
     creatorType: "Content Creator",
     languageCodes: ["en"],
     timezone: "UTC",
-    profileUrl: `http://localhost:8082/creator/${namePart}`,
-    websiteUrl: `http://localhost:8082/creator/${namePart}`,
+    profileUrl: `${((import.meta as any).env?.VITE_MARKETPLACE_URL || "http://localhost:8082").replace(/\/+$/, "")}/creator/${namePart}`,
+    websiteUrl: `${((import.meta as any).env?.VITE_MARKETPLACE_URL || "http://localhost:8082").replace(/\/+$/, "")}/creator/${namePart}`,
     views_count: 0,
   };
 }
@@ -185,16 +193,18 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
   const currentEmail = demoAuth.getEmail() || "ananya@influencers.com";
   const isDemoAnanya = currentEmail.trim().toLowerCase() === "ananya@influencers.com";
 
-  const [profile, setProfile] = useState<CreatorProfileData>(() => buildFallbackFromEmail(currentEmail));
+  const [profile, setProfile] = useState<CreatorProfileData>(() =>
+    buildFallbackFromEmail(currentEmail),
+  );
   const [portfolio, setPortfolio] = useState<WorkspacePortfolioItem[]>(() =>
-    isDemoAnanya ? (demoPortfolio as unknown as WorkspacePortfolioItem[]) : []
+    isDemoAnanya ? (demoPortfolio as unknown as WorkspacePortfolioItem[]) : [],
   );
   const [services, setServices] = useState<WorkspaceServiceItem[]>(() =>
-    isDemoAnanya ? (demoServices as unknown as WorkspaceServiceItem[]) : []
+    isDemoAnanya ? (demoServices as unknown as WorkspaceServiceItem[]) : [],
   );
   const [opportunities, setOpportunities] = useState<WorkspaceOpportunityItem[]>([]);
   const [inquiries, setInquiries] = useState<WorkspaceInquiryItem[]>(() =>
-    isDemoAnanya ? (demoInquiries as unknown as WorkspaceInquiryItem[]) : []
+    isDemoAnanya ? (demoInquiries as unknown as WorkspaceInquiryItem[]) : [],
   );
   const [loading, setLoading] = useState(true);
 
@@ -220,9 +230,7 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
         let category = "Content Creator";
         let categories: string[] = ["Lifestyle"];
         if (Array.isArray(data.categories) && data.categories.length > 0) {
-          categories = data.categories
-            .map((c: any) => c.category?.name || c.name)
-            .filter(Boolean);
+          categories = data.categories.map((c: any) => c.category?.name || c.name).filter(Boolean);
           if (categories.length > 0) {
             category = categories.join(" · ");
           }
@@ -243,14 +251,21 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
           location,
           category,
           categories,
-          completion: typeof data.completion_percentage === "number" ? data.completion_percentage : (data.bio ? 75 : 40),
+          completion:
+            typeof data.completion_percentage === "number"
+              ? data.completion_percentage
+              : data.bio
+                ? 75
+                : 40,
           verified: data.verification_status === "VERIFIED",
           currency: data.currency || "USD",
           creatorType: data.creator_type || "Content Creator",
-          languageCodes: Array.isArray(data.languages) ? data.languages.map((l: any) => l.language_code) : ["en"],
+          languageCodes: Array.isArray(data.languages)
+            ? data.languages.map((l: any) => l.language_code)
+            : ["en"],
           timezone: data.timezone || "UTC",
-          profileUrl: `http://localhost:8082/creator/${rawHandle.replace(/^@/, "")}`,
-          websiteUrl: `http://localhost:8082/creator/${rawHandle.replace(/^@/, "")}`,
+          profileUrl: `${((import.meta as any).env?.VITE_MARKETPLACE_URL || "http://localhost:8082").replace(/\/+$/, "")}/creator/${rawHandle.replace(/^@/, "")}`,
+          websiteUrl: `${((import.meta as any).env?.VITE_MARKETPLACE_URL || "http://localhost:8082").replace(/\/+$/, "")}/creator/${rawHandle.replace(/^@/, "")}`,
           views_count: typeof data.views_count === "number" ? data.views_count : 0,
           mfa_enabled: !!data.mfa_enabled,
           preferences: data.preferences || {},
@@ -267,17 +282,31 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
   const fetchPortfolio = useCallback(async () => {
     try {
       const data = await creatorApi.getPortfolio();
-      const rawList = Array.isArray(data) ? data : (data?.results || []);
+      const rawList = Array.isArray(data) ? data : data?.results || [];
       const mapped = rawList.map((item: any) => ({
         id: String(item.id),
         title: item.title || "Untitled Project",
         category: item.category || "Lifestyle",
         brand: item.brand || item.brand_name || "Brand Partner",
-        date: item.deliverable_date || (item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "Recent"),
+        date:
+          item.deliverable_date ||
+          (item.created_at
+            ? new Date(item.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                year: "numeric",
+              })
+            : "Recent"),
         image: item.image || item.media_url || "",
         format: item.format || item.format_tag || "Reel",
-        views: typeof item.views === "number" ? item.views.toLocaleString() : (item.views_count ? item.views_count.toLocaleString() : "0"),
-        tags: Array.isArray(item.tags) ? item.tags : [item.format_tag || "Showcase"].filter(Boolean),
+        views:
+          typeof item.views === "number"
+            ? item.views.toLocaleString()
+            : item.views_count
+              ? item.views_count.toLocaleString()
+              : "0",
+        tags: Array.isArray(item.tags)
+          ? item.tags
+          : [item.format_tag || "Showcase"].filter(Boolean),
         description: item.description || "",
       }));
       setPortfolio(mapped);
@@ -293,16 +322,21 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
   const fetchServices = useCallback(async () => {
     try {
       const data = await creatorApi.getServices();
-      const rawList = Array.isArray(data) ? data : (data?.results || []);
+      const rawList = Array.isArray(data) ? data : data?.results || [];
       const mapped = rawList.map((item: any) => {
         const priceCents = item.price_cents ?? item.starting_price_cents ?? 0;
         return {
           id: String(item.id),
           name: item.name || "Custom Service",
           description: item.description || "Custom creator deliverable package.",
-          price: item.is_contact_for_price || priceCents === 0 ? null : { amount: priceCents / 100, currency: item.currency || "USD" },
+          price:
+            item.is_contact_for_price || priceCents === 0
+              ? null
+              : { amount: priceCents / 100, currency: item.currency || "USD" },
           deliverables: item.deliverables || item.deliverables_spec || "1 deliverable",
-          turnaround: item.turnaround_days ? `${item.turnaround_days} days` : (item.turnaround || "7–10 days"),
+          turnaround: item.turnaround_days
+            ? `${item.turnaround_days} days`
+            : item.turnaround || "7–10 days",
           active: item.is_active ?? true,
         };
       });
@@ -319,16 +353,24 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
   const fetchOpportunities = useCallback(async (params?: Record<string, string | number>) => {
     try {
       const data = await creatorApi.getOpportunities(params);
-      const rawList = Array.isArray(data) ? data : (data?.results || []);
+      const rawList = Array.isArray(data) ? data : data?.results || [];
       const mapped = rawList.map((item: any) => {
-        const budgetNum = typeof item.budget === "number" ? item.budget : (item.total_budget_cents ? item.total_budget_cents / 100 : 500);
+        const budgetNum =
+          typeof item.budget === "number"
+            ? item.budget
+            : item.total_budget_cents
+              ? item.total_budget_cents / 100
+              : 500;
         const minBudget = item.budget?.min ?? budgetNum;
         const maxBudget = item.budget?.max ?? minBudget;
         const currency = item.currency || "INR";
         const locName = item.location || item.location_text || "Kerala, India";
         const lat = typeof item.lat === "number" ? item.lat : 9.9312;
         const lng = typeof item.lng === "number" ? item.lng : 76.2673;
-        const isRemote = !item.location_text || item.location_text.toLowerCase().includes("remote") || item.location_text.toLowerCase().includes("worldwide");
+        const isRemote =
+          !item.location_text ||
+          item.location_text.toLowerCase().includes("remote") ||
+          item.location_text.toLowerCase().includes("worldwide");
         return {
           id: String(item.id),
           name: item.title || item.name || "Campaign Opportunity",
@@ -339,7 +381,10 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
             name: locName,
             level: "city",
             country: "India",
-            countryCode: (locName.toLowerCase().includes("dubai") || locName.toLowerCase().includes("uae")) ? "AE" : "IN",
+            countryCode:
+              locName.toLowerCase().includes("dubai") || locName.toLowerCase().includes("uae")
+                ? "AE"
+                : "IN",
             lat,
             lng,
           },
@@ -347,7 +392,12 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
           platform: item.platform || "Instagram, YouTube",
           deliverables: item.deliverables || item.deliverables_spec || "Campaign deliverables",
           budget: { min: minBudget, max: maxBudget, currency },
-          deadline: item.deadline ? new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Open",
+          deadline: item.deadline
+            ? new Date(item.deadline).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })
+            : "Open",
           creators: item.creators || item.creators_needed || 1,
           match: item.match || 95,
           cover_image_url: item.cover_image_url || item.image || "",
@@ -363,15 +413,35 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
   const fetchInquiries = useCallback(async () => {
     try {
       const data = await creatorApi.getInquiries();
-      const rawList = Array.isArray(data) ? data : (data?.results || []);
+      const rawList = Array.isArray(data) ? data : data?.results || [];
       const mapped = rawList.map((item: any) => {
-        const budgetStr = typeof item.budget === "string" ? item.budget : (item.budget_cents ? `$${(item.budget_cents / 100).toLocaleString()}` : (item.budget ? `$${item.budget}` : "Contact"));
-        const dateStr = item.date || (item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recent");
+        const budgetStr =
+          typeof item.budget === "string"
+            ? item.budget
+            : item.budget_cents
+              ? `$${(item.budget_cents / 100).toLocaleString()}`
+              : item.budget
+                ? `$${item.budget}`
+                : "Contact";
+        const dateStr =
+          item.date ||
+          (item.created_at
+            ? new Date(item.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })
+            : "Recent");
         const rawStatus = String(item.status || "New");
         const statusTitle = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
 
-        const isRead = item.is_read !== undefined ? Boolean(item.is_read) : (item.unread_count !== undefined ? item.unread_count === 0 : true);
-        const unreadCount = typeof item.unread_count === "number" ? item.unread_count : (isRead ? 0 : 1);
+        const isRead =
+          item.is_read !== undefined
+            ? Boolean(item.is_read)
+            : item.unread_count !== undefined
+              ? item.unread_count === 0
+              : true;
+        const unreadCount =
+          typeof item.unread_count === "number" ? item.unread_count : isRead ? 0 : 1;
 
         return {
           id: String(item.id),
@@ -397,7 +467,7 @@ export function CreatorProfileProvider({ children }: { children: ReactNode }) {
 
   const markInquiryAsRead = useCallback(async (id: string) => {
     setInquiries((prev) =>
-      prev.map((inq) => (inq.id === id ? { ...inq, is_read: true, unread_count: 0 } : inq))
+      prev.map((inq) => (inq.id === id ? { ...inq, is_read: true, unread_count: 0 } : inq)),
     );
     try {
       await creatorApi.markInquiryRead(id);
@@ -484,14 +554,15 @@ export function CreatorAvatar({
   fallbackClassName?: string | undefined;
 }) {
   const [error, setError] = useState(false);
-  const initials = (name || "Creator")
-    .trim()
-    .split(/\s+/)
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "CR";
+  const initials =
+    (name || "Creator")
+      .trim()
+      .split(/\s+/)
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "CR";
 
   if (src && !error) {
     return (
@@ -508,7 +579,7 @@ export function CreatorAvatar({
     <div
       className={cn(
         "grid place-items-center rounded-md bg-gradient-to-br from-coral to-coral-soft text-primary-foreground select-none shrink-0 border border-coral/30 shadow-sm",
-        className
+        className,
       )}
       aria-label={name || "Creator avatar"}
     >
@@ -537,7 +608,7 @@ export function CreatorCover({
     <div
       className={cn(
         "h-full w-full bg-gradient-to-br from-primary/10 via-coral/15 to-teal/10 flex items-center justify-center text-muted-foreground/50",
-        className
+        className,
       )}
     >
       <span className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground/60">

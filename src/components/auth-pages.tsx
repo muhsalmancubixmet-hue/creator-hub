@@ -16,8 +16,12 @@ function Shell({ title, sub, children }: { title: string; sub: string; children:
         <img src={creator.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/30 to-transparent" />
         <div className="absolute bottom-10 left-10 right-10 text-primary-foreground">
-          <p className="font-display text-4xl leading-tight">Discover influencers anywhere in the world.</p>
-          <p className="mt-3 text-sm text-primary-foreground/70">Your creator workspace for profile, portfolio and partnerships.</p>
+          <p className="font-display text-4xl leading-tight">
+            Discover influencers anywhere in the world.
+          </p>
+          <p className="mt-3 text-sm text-primary-foreground/70">
+            Your creator workspace for profile, portfolio and partnerships.
+          </p>
         </div>
       </div>
       <div className="grid place-items-center px-5 py-10">
@@ -94,12 +98,19 @@ export function LoginPage() {
             </button>
           </div>
         </label>
-        <Button type="submit" className="w-full bg-coral font-bold text-primary-foreground hover:bg-coral/90" disabled={loading}>
+        <Button
+          type="submit"
+          className="w-full bg-coral font-bold text-primary-foreground hover:bg-coral/90"
+          disabled={loading}
+        >
           {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        New creator? <Link to="/signup" className="font-bold text-foreground underline">Create an account</Link>
+        New creator?{" "}
+        <Link to="/signup" className="font-bold text-foreground underline">
+          Create an account
+        </Link>
       </p>
     </Shell>
   );
@@ -145,7 +156,11 @@ export function SignupPage() {
           errorMsg = data.non_field_errors[0];
         } else if (typeof data === "object") {
           const firstVal = Object.values(data)[0];
-          errorMsg = Array.isArray(firstVal) ? String(firstVal[0]) : (typeof firstVal === "string" ? firstVal : JSON.stringify(data));
+          errorMsg = Array.isArray(firstVal)
+            ? String(firstVal[0])
+            : typeof firstVal === "string"
+              ? firstVal
+              : JSON.stringify(data);
         }
       } else if (err.message) {
         errorMsg = err.message;
@@ -159,7 +174,11 @@ export function SignupPage() {
   return (
     <Shell
       title={sent ? "Check your inbox" : "Join as a creator"}
-      sub={sent ? `We dispatched a magic login link to ${sent}.` : "Enter your email and username to create your creator workspace."}
+      sub={
+        sent
+          ? `We dispatched a magic login link to ${sent}.`
+          : "Enter your email and username to create your creator workspace."
+      }
     >
       {sent ? (
         <div className="creator-card space-y-4 p-5 text-center">
@@ -168,7 +187,8 @@ export function SignupPage() {
           </span>
           <p className="text-base font-bold">Magic Link Dispatched</p>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            We sent a welcome email to <strong className="text-foreground">{sent}</strong> with your one-click dashboard login button and credentials.
+            We sent a welcome email to <strong className="text-foreground">{sent}</strong> with your
+            one-click dashboard login button and credentials.
           </p>
           <p className="text-[11px] text-muted-foreground/80">
             Click <strong>Log In to Dashboard</strong> in your email to sign in instantly.
@@ -190,13 +210,20 @@ export function SignupPage() {
             Email
             <Input name="email" type="email" placeholder="you@example.com" required />
           </label>
-          <Button type="submit" disabled={loading} className="mt-2 h-11 bg-coral text-primary-foreground hover:bg-coral/90">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="mt-2 h-11 bg-coral text-primary-foreground hover:bg-coral/90"
+          >
             {loading ? "Creating account..." : "Register & Send Magic Link"}
           </Button>
         </form>
       )}
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Already have an account? <Link to="/login" className="font-bold text-foreground underline">Sign in</Link>
+        Already have an account?{" "}
+        <Link to="/login" className="font-bold text-foreground underline">
+          Sign in
+        </Link>
       </p>
     </Shell>
   );
