@@ -2,6 +2,7 @@ import { apiClient } from "./api-client";
 
 export interface CreatorProfileUpdatePayload {
   name?: string;
+  full_name?: string;
   display_name?: string;
   bio?: string;
   about?: string;
@@ -12,6 +13,8 @@ export interface CreatorProfileUpdatePayload {
   previous_collaborations?: string;
   achievements?: string;
   location_text?: string;
+  categories?: string[];
+  languages?: string[];
   is_accepting_offers?: boolean;
   is_travel_ready?: boolean;
   photo_url?: string;
@@ -123,11 +126,8 @@ export const creatorApi = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("file_type", fileType);
-    const res = await apiClient.post("/creator/media/upload/", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    // Do not pass manual Content-Type: multipart/form-data so Axios computes the boundary string
+    const res = await apiClient.post("/creator/media/upload/", formData);
     return res.data;
   },
 

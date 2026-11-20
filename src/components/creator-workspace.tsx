@@ -1122,8 +1122,12 @@ function ProfilePage() {
   const { profile, refreshProfile } = useCurrentCreator();
   const isDemo = demoAuth.isDemoUser();
   const [edit, setEdit] = useState(false);
-  const avatar = useImagePicker(profile.photo || "", "AVATAR");
-  const cover = useImagePicker(profile.cover || "", "COVER");
+  const avatar = useImagePicker(profile.photo || "", "AVATAR", (url) => {
+    void creatorApi.updateProfile({ photo_url: url }).then(() => refreshProfile());
+  });
+  const cover = useImagePicker(profile.cover || "", "COVER", (url) => {
+    void creatorApi.updateProfile({ cover_url: url }).then(() => refreshProfile());
+  });
   const [saving, setSaving] = useState(false);
 
   const [displayName, setDisplayName] = useState(profile.displayName || profile.name);
@@ -1132,6 +1136,11 @@ function ProfilePage() {
   const [about, setAbout] = useState(profile.about);
   const [locationText, setLocationText] = useState(profile.location);
   const [currency, setCurrency] = useState(profile.currency || "USD");
+  const [categoriesList, setCategoriesList] = useState<string[]>(profile.categories || []);
+  const [languagesText, setLanguagesText] = useState<string>(
+    profile.languageCodes?.map((c) => languages.find((l) => l.code === c)?.name ?? c).join(", ") ||
+      "English",
+  );
 
   useEffect(() => {
     setDisplayName(profile.displayName || profile.name);
@@ -1140,34 +1149,38 @@ function ProfilePage() {
     setAbout(profile.about);
     setLocationText(profile.location);
     if (profile.currency) setCurrency(profile.currency);
+    if (profile.categories) setCategoriesList(profile.categories);
+    if (profile.languageCodes && profile.languageCodes.length > 0) {
+      setLanguagesText(
+        profile.languageCodes
+          .map((c) => languages.find((l) => l.code === c)?.name ?? c)
+          .join(", "),
+      );
+    }
   }, [profile]);
-
-  useEffect(() => {
-    if (avatar.src && avatar.src !== profile.photo) {
-      void creatorApi.updateProfile({ photo_url: avatar.src }).then(() => refreshProfile());
-    }
-  }, [avatar.src, profile.photo, refreshProfile]);
-
-  useEffect(() => {
-    if (cover.src && cover.src !== profile.cover) {
-      void creatorApi.updateProfile({ cover_url: cover.src }).then(() => refreshProfile());
-    }
-  }, [cover.src, profile.cover, refreshProfile]);
 
   const handleSaveProfileDirect = async () => {
     setSaving(true);
     try {
       await creatorApi.updateProfile({
+        name: fullName,
         display_name: displayName,
         bio: bio,
         about: about,
         location_text: locationText,
         currency: currency,
+        categories: categoriesList,
+        languages: languagesText
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
       });
       toast.success("Profile saved to database!");
       await refreshProfile();
-    } catch {
-      toast.success("Profile changes saved");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail || "Failed to save profile. Please check your inputs.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -1227,9 +1240,9 @@ function ProfilePage() {
                 </Labeled>
                 <Labeled label="Languages">
                   <Input
-                    defaultValue={profile.languageCodes
-                      .map((c) => languages.find((l) => l.code === c)?.name ?? c)
-                      .join(", ")}
+                    value={languagesText}
+                    onChange={(e) => setLanguagesText(e.target.value)}
+                    placeholder="e.g. English, Malayalam, Hindi"
                   />
                 </Labeled>
                 <Labeled label="Primary currency">
@@ -1241,7 +1254,7 @@ function ProfilePage() {
               <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
             </Labeled>
             <Labeled label="Categories">
-              <CategoryPicker initialCategories={profile.categories} />
+              <CategoryPicker categories={categoriesList} onChange={setCategoriesList} />
             </Labeled>
           </FormSection>
           <LocationSection locationStr={locationText} onLocationChange={setLocationText} />
@@ -2086,11 +2099,12 @@ function PortfolioPreview({
                       await creatorApi.deletePortfolioItem(item.id);
                       toast.success("Item removed from portfolio");
                       onDeleted?.();
-                    } catch {
-                      toast.success("Item removed from portfolio");
-                      onDeleted?.();
+                      onClose();
+                    } catch (err: any) {
+                      toast.error(
+                        err?.response?.data?.detail || "Failed to remove portfolio item.",
+                      );
                     }
-                    onClose();
                   }}
                 >
                   <Trash2 />
@@ -2264,10 +2278,8 @@ function ServicesPage() {
       toast.success("Service tier added successfully!");
       setAdd(false);
       void refreshServices();
-    } catch {
-      toast.success("Service added");
-      setAdd(false);
-      void refreshServices();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to add service. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -2375,9 +2387,9 @@ function ServiceCard({
       await creatorApi.updateService(service.id, { is_active: checked });
       toast.success(`Service is now ${checked ? "active" : "hidden"}`);
       onUpdated?.();
-    } catch {
-      toast.info(`Service status updated`);
-      onUpdated?.();
+    } catch (err: any) {
+      setActive(!checked);
+      toast.error(err?.response?.data?.detail || "Failed to update service status.");
     }
   };
 
@@ -2479,9 +2491,8 @@ function WebsitePage() {
       });
       toast.success("Your website is now live!");
       setPublished(true);
-    } catch {
-      toast.success("Website published successfully");
-      setPublished(true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to publish website.");
     } finally {
       setSaving(false);
     }
@@ -2496,9 +2507,8 @@ function WebsitePage() {
       await creatorApi.updateProfile({ previous_collaborations: existingUrl });
       toast.success("Existing website linked to profile!");
       setExisting(null);
-    } catch {
-      toast.success("Website connected");
-      setExisting(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to connect website.");
     }
   };
 
@@ -2894,10 +2904,8 @@ function WebsiteLive({
       toast.success(`Template updated to ${tmpl}`);
       setTemplateOpen(false);
       await refreshProfile();
-    } catch {
-      setSelectedTemplate(tmpl);
-      toast.success(`Template applied: ${tmpl}`);
-      setTemplateOpen(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to update template.");
     } finally {
       setSavingTemplate(false);
     }
@@ -2913,9 +2921,8 @@ function WebsiteLive({
       toast.success("SEO and metadata settings updated!");
       setSeoOpen(false);
       await refreshProfile();
-    } catch {
-      toast.success("SEO settings saved");
-      setSeoOpen(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to save SEO settings.");
     } finally {
       setSavingSeo(false);
     }
@@ -2995,9 +3002,8 @@ function WebsiteLive({
                   await creatorApi.updateWebsite({ status: "DRAFT", is_published: false });
                   toast.info("Website unpublished");
                   onUnpublished?.();
-                } catch {
-                  toast.info("Website unpublished");
-                  onUnpublished?.();
+                } catch (err: any) {
+                  toast.error(err?.response?.data?.detail || "Failed to unpublish website.");
                 }
               }}
             >
@@ -3140,8 +3146,8 @@ function MediaKitPage() {
       setGenerating(true);
       await refreshProfile();
       toast.success("Media kit refreshed with your latest metrics and portfolio!");
-    } catch {
-      toast.success("Media kit generated successfully");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to refresh media kit data.");
     } finally {
       setGenerating(false);
     }
@@ -3326,10 +3332,10 @@ function OpportunityApplyModal({
       toast.success("Application successfully submitted to brand!");
       onApplied?.();
       onClose();
-    } catch {
-      toast.success("Application submitted successfully!");
-      onApplied?.();
-      onClose();
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.detail || "Failed to submit application. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -4097,10 +4103,8 @@ function Conversation({
       toast.success("Inquiry accepted! Collaboration workspace ready.");
       onStatusChanged?.("Accepted");
       onReplied?.();
-    } catch {
-      toast.info("Inquiry status updated");
-      onStatusChanged?.("Accepted");
-      onReplied?.();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to update inquiry status.");
     }
   };
 
@@ -4111,10 +4115,8 @@ function Conversation({
       toast.warning("Inquiry declined");
       onStatusChanged?.("Declined");
       onReplied?.();
-    } catch {
-      toast.info("Inquiry status updated");
-      onStatusChanged?.("Declined");
-      onReplied?.();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to update inquiry status.");
     }
   };
 
@@ -4125,10 +4127,8 @@ function Conversation({
       toast.info("Status set to Negotiating. You can now reply to propose revised terms.");
       onStatusChanged?.("Negotiating");
       onReplied?.();
-    } catch {
-      toast.info("Inquiry status updated to Negotiating");
-      onStatusChanged?.("Negotiating");
-      onReplied?.();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to update inquiry status.");
     }
   };
 
@@ -5241,18 +5241,36 @@ function CurrencySelect({
     </Select>
   );
 }
-function CategoryPicker({ initialCategories }: { initialCategories?: string[] } = {}) {
+function CategoryPicker({
+  initialCategories,
+  categories: controlledCategories,
+  onChange,
+}: {
+  initialCategories?: string[];
+  categories?: string[];
+  onChange?: (cats: string[]) => void;
+} = {}) {
   const { profile } = useCurrentCreator();
-  const [sel, setSel] = useState<string[]>(
+  const [internalSel, setInternalSel] = useState<string[]>(
     initialCategories ?? profile.categories ?? ["Lifestyle"],
   );
+  const sel = controlledCategories !== undefined ? controlledCategories : internalSel;
+
+  const toggle = (c: string) => {
+    const next = sel.includes(c) ? sel.filter((x) => x !== c) : [...sel, c];
+    if (controlledCategories === undefined) {
+      setInternalSel(next);
+    }
+    onChange?.(next);
+  };
+
   return (
     <div className="flex flex-wrap gap-2">
       {categories.map((c) => (
         <button
           type="button"
           key={c}
-          onClick={() => setSel((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))}
+          onClick={() => toggle(c)}
           className={cn(
             "rounded-full border px-3 py-1 text-xs font-bold transition",
             sel.includes(c)

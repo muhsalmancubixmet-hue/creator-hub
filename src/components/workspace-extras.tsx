@@ -48,7 +48,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Real file input with multipart upload mutation and instant preview. */
-export function useImagePicker(initial: string, fileType: "AVATAR" | "COVER" | "IMAGE" = "AVATAR") {
+export function useImagePicker(
+  initial: string,
+  fileType: "AVATAR" | "COVER" | "IMAGE" = "AVATAR",
+  onUploaded?: (url: string) => void,
+) {
   const [src, setSrc] = useState(initial);
   const [uploading, setUploading] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
@@ -71,11 +75,17 @@ export function useImagePicker(initial: string, fileType: "AVATAR" | "COVER" | "
         const label =
           fileType === "AVATAR" ? "Avatar" : fileType === "COVER" ? "Cover" : "Portfolio";
         toast.success(`${label} image uploaded successfully!`);
+        onUploaded?.(res.url);
       } else {
+        setSrc(initial);
+        URL.revokeObjectURL(localUrl);
         toast.error("Upload did not return an image URL. Please try again.");
       }
-    } catch {
-      toast.error("Image upload failed. Please try again.");
+    } catch (err: any) {
+      setSrc(initial);
+      URL.revokeObjectURL(localUrl);
+      const msg = err?.response?.data?.detail || "Image upload failed. Please try again.";
+      toast.error(msg);
     } finally {
       setUploading(false);
       if (ref.current) ref.current.value = "";
@@ -118,14 +128,15 @@ export function EditProfileDrawer({
         display_name: name,
         bio,
         location_text: location,
+        categories: sel,
       });
       toast.success("Profile saved successfully!");
       await refreshProfile();
       onSaved?.();
       onOpenChange(false);
-    } catch {
-      toast.success("Profile saved (demo state updated)");
-      onOpenChange(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || "Failed to save profile. Please try again.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -325,9 +336,8 @@ export function EditServiceDialog({
       toast.success("Service updated successfully!");
       onSaved?.();
       onClose();
-    } catch {
-      toast.success("Service updated");
-      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to update service");
     } finally {
       setSaving(false);
     }
@@ -439,10 +449,8 @@ export function ComposeDialog({
       setText("");
       onSent?.();
       onOpenChange(false);
-    } catch {
-      toast.success("Message sent");
-      setText("");
-      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Failed to send message");
     } finally {
       setSending(false);
     }
