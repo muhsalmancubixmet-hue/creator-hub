@@ -145,13 +145,21 @@ const BRAND_DATA: Record<string, BrandReputation> = {
   },
 };
 
+// Runtime in-memory storage (clears cleanly on page reload, strictly zero localStorage)
+const IN_MEMORY_BRAND_REPUTATIONS: Record<string, BrandReputation> = {};
+
 /**
  * Returns verified brand reputation data or generates realistic trusted scores for dynamic brands.
  */
 export function getBrandReputation(brandName: string): BrandReputation {
   const clean = (brandName || "").trim();
+  if (IN_MEMORY_BRAND_REPUTATIONS[clean]) {
+    return IN_MEMORY_BRAND_REPUTATIONS[clean];
+  }
+
   if (BRAND_DATA[clean]) {
-    return BRAND_DATA[clean];
+    IN_MEMORY_BRAND_REPUTATIONS[clean] = JSON.parse(JSON.stringify(BRAND_DATA[clean]));
+    return IN_MEMORY_BRAND_REPUTATIONS[clean];
   }
 
   // Derive stable pseudo-metrics from name for consistency
@@ -160,7 +168,7 @@ export function getBrandReputation(brandName: string): BrandReputation {
   const reviewCount = 8 + (hash % 20);
   const completed = reviewCount + (hash % 10);
 
-  return {
+  const generated: BrandReputation = {
     brandName: clean || "Partner Brand",
     rating,
     reviewCount,
@@ -183,4 +191,54 @@ export function getBrandReputation(brandName: string): BrandReputation {
       },
     ],
   };
+
+  IN_MEMORY_BRAND_REPUTATIONS[clean] = generated;
+  return generated;
+}
+
+export interface NewBrandReviewInput {
+  creatorName?: string;
+  creatorNiche?: string;
+  rating: number;
+  comment: string;
+  campaignType?: string;
+  paymentSpeed?: string;
+}
+
+/**
+ * Records a verified creator review in in-memory session state.
+ * Resets cleanly on page refresh.
+ */
+export function submitBrandReview(
+  brandName: string,
+  input: NewBrandReviewInput
+): BrandReputation {
+  const clean = (brandName || "").trim();
+  const current = getBrandReputation(clean);
+
+  const newReview: BrandReview = {
+    id: `rev-user-${Date.now()}`,
+    creatorName: input.creatorName?.trim() || "You (Verified Creator)",
+    creatorNiche: input.creatorNiche?.trim() || "Content Creator",
+    rating: input.rating,
+    date: "Just now",
+    comment: input.comment.trim(),
+    campaignType: input.campaignType || "Sponsored Campaign",
+  };
+
+  const updatedReviews = [newReview, ...current.reviews];
+  const totalRating = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+  const newAvgRating = Number((totalRating / updatedReviews.length).toFixed(1));
+
+  const updatedRep: BrandReputation = {
+    ...current,
+    rating: newAvgRating,
+    reviewCount: updatedReviews.length,
+    completedCampaigns: current.completedCampaigns + 1,
+    paymentPunctuality: input.paymentSpeed || current.paymentPunctuality,
+    reviews: updatedReviews,
+  };
+
+  IN_MEMORY_BRAND_REPUTATIONS[clean] = updatedRep;
+  return updatedRep;
 }

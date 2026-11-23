@@ -73,6 +73,11 @@ import { BrandTrustDialog } from "@/components/brand-trust-dialog";
 import { AiPitchDrawer } from "@/components/ai-pitch-drawer";
 import { generateOpportunityPitch, type PitchTone } from "@/lib/ai-pitch-generator";
 import { getBrandReputation } from "@/data/brand-trust-data";
+import {
+  getSmartReplies,
+  polishQuickCue,
+  detectMessageIntent,
+} from "@/lib/chat-smart-reply-engine";
 import type { LucideIcon } from "lucide-react";
 import {
   Area,
@@ -4107,6 +4112,42 @@ function Conversation({
   const [compose, setCompose] = useState(false);
   const [sending, setSending] = useState(false);
   const [trustOpen, setTrustOpen] = useState(false);
+  const [quickCue, setQuickCue] = useState("");
+  const [showCueBar, setShowCueBar] = useState(false);
+
+  // Compute latest message from brand/business to drive context-aware replies
+  const lastBrandMessage = useMemo(() => {
+    const brandMsgs = messages.filter(
+      (m) => m.is_from_business || m.is_from_brand || (!m.is_me && !m.is_from_creator)
+    );
+    if (brandMsgs.length > 0) {
+      return brandMsgs[brandMsgs.length - 1].body;
+    }
+    return inquiry?.message || "";
+  }, [messages, inquiry?.message]);
+
+  const detectedIntent = useMemo(() => {
+    return detectMessageIntent(lastBrandMessage);
+  }, [lastBrandMessage]);
+
+  const smartReplies = useMemo(() => {
+    return getSmartReplies(
+      lastBrandMessage,
+      inquiry?.business || "",
+      inquiry?.campaign,
+      inquiry?.budget
+    );
+  }, [lastBrandMessage, inquiry?.business, inquiry?.campaign, inquiry?.budget]);
+
+  const handlePolishCue = () => {
+    if (!quickCue.trim()) return;
+    const polished = polishQuickCue(quickCue, inquiry?.business || "", lastBrandMessage);
+    setReply(polished);
+    setQuickCue("");
+    setShowCueBar(false);
+    toast.success("AI polished your message!");
+  };
+
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const collab = inquiry ? collabFor("inquiry", inquiry.id) : null;
   const isAccepted = inquiry?.status?.toLowerCase() === "accepted";
@@ -4276,6 +4317,17 @@ function Conversation({
               Live
             </span>
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setTrustOpen(true)}
+            className="h-7 text-[11px] gap-1 font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
+            title="Rate this brand or read verified reviews"
+          >
+            <Star className="size-3 fill-amber-500 text-amber-500" />
+            Rate Brand
+          </Button>
           {(collab || isAccepted) && (
             <Button asChild size="sm" variant="secondary">
               <Link to="/collabs/$id" params={{ id: inquiry.id }}>
@@ -4353,37 +4405,68 @@ function Conversation({
       </div>
 
       <div className="border-t p-4 bg-card shrink-0">
-        <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2">
-          <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
-            <Sparkles className="size-3 text-coral" /> Quick AI Responses:
-          </span>
+        <div className="space-y-2 pb-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                <Sparkles className="size-3 text-coral" /> Quick AI Responses:
+              </span>
+              <span className="rounded-full bg-coral/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-coral">
+                {detectedIntent} query
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCueBar((v) => !v)}
+              className="text-[10px] font-bold text-coral hover:underline inline-flex items-center gap-1 cursor-pointer"
+            >
+              <Wand2 className="size-3" />
+              {showCueBar ? "Hide Custom Cue" : "✨ Polish Custom Cue"}
+            </button>
+          </div>
+
+          {/* Expandable Quick Cue Polish Bar */}
+          {showCueBar && (
+            <div className="flex items-center gap-1.5 rounded-xl border border-coral/30 bg-coral-soft/30 p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+              <Input
+                value={quickCue}
+                onChange={(e) => setQuickCue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handlePolishCue();
+                  }
+                }}
+                placeholder="Type rough note (e.g. 'Friday upload ready', 'Need 2 days more', 'Send logo file')..."
+                className="h-7 text-xs bg-background"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 px-3 text-[10px] font-bold shrink-0 gap-1"
+                onClick={handlePolishCue}
+                disabled={!quickCue.trim()}
+              >
+                <Sparkles className="size-3" /> Polish
+              </Button>
+            </div>
+          )}
+
+          {/* Dynamic Contextual Smart Chips */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-6 text-[10px] gap-1 font-bold text-teal border-teal/30 hover:bg-teal-soft"
-              onClick={() =>
-                setReply(
-                  `Hi ${inquiry.business} Team! Thank you for reaching out. I'm excited about ${inquiry.campaign}. I accept the proposed scope and can have the first draft ready for your review within 5 business days. Let's make this collaboration a success!`
-                )
-              }
-            >
-              Accept Terms
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-6 text-[10px] gap-1 font-bold text-coral border-coral/30 hover:bg-coral-soft"
-              onClick={() =>
-                setReply(
-                  `Hi ${inquiry.business} Team! Thank you for considering me for ${inquiry.campaign}. Based on the deliverables and usage rights, my standard package rate is ${inquiry.budget || "₹25,000"} which includes 1 high-retention video, 2 supporting stories, and 30-day digital amplification rights. Would this work for your team?`
-                )
-              }
-            >
-              Propose Rate
-            </Button>
+            {smartReplies.map((opt) => (
+              <Button
+                key={opt.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 text-[10px] gap-1 font-bold text-foreground border-border hover:border-coral/50 hover:bg-coral-soft/40 transition"
+                onClick={() => setReply(opt.text)}
+                title={opt.text}
+              >
+                <span>{opt.title}</span>
+              </Button>
+            ))}
           </div>
         </div>
         <Textarea
