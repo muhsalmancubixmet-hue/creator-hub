@@ -126,8 +126,11 @@ export const creatorApi = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("file_type", fileType);
-    // Do not pass manual Content-Type: multipart/form-data so Axios computes the boundary string
-    const res = await apiClient.post("/creator/media/upload/", formData);
+    const res = await apiClient.post("/creator/media/upload/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     return res.data;
   },
 

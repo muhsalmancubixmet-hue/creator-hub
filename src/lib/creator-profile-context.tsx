@@ -540,6 +540,31 @@ export function useCurrentCreator(): CreatorProfileContextType {
 }
 
 /**
+ * Resolves media URLs: converts relative paths (e.g. /media/...) to full backend URLs
+ * so images are loaded from the Django API server rather than the frontend dev server.
+ */
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:")
+  ) {
+    return trimmed;
+  }
+  const apiBase =
+    (typeof import.meta !== "undefined" &&
+      (import.meta as any).env?.["VITE_API_BASE_URL"]) ||
+    "http://127.0.0.1:8000/api/v1";
+  const backendOrigin = apiBase.replace(/\/api\/v1\/?$/, "").replace(/\/+$/, "");
+  const normalizedPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${backendOrigin}${normalizedPath}`;
+}
+
+/**
  * Renders the creator's avatar image, or a polished initials placeholder if no photo is uploaded.
  */
 export function CreatorAvatar({
@@ -554,6 +579,11 @@ export function CreatorAvatar({
   fallbackClassName?: string | undefined;
 }) {
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
   const initials =
     (name || "Creator")
       .trim()
@@ -564,10 +594,12 @@ export function CreatorAvatar({
       .join("")
       .toUpperCase() || "CR";
 
-  if (src && !error) {
+  const resolvedSrc = resolveMediaUrl(src);
+
+  if (resolvedSrc && !error) {
     return (
       <img
-        src={src}
+        src={resolvedSrc}
         alt={name || "Creator avatar"}
         onError={() => setError(true)}
         className={cn("object-cover", className)}
@@ -601,8 +633,15 @@ export function CreatorCover({
   className?: string | undefined;
 }) {
   const [error, setError] = useState(false);
-  if (src && !error) {
-    return <img src={src} alt={alt} onError={() => setError(true)} className={className} />;
+
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
+  const resolvedSrc = resolveMediaUrl(src);
+
+  if (resolvedSrc && !error) {
+    return <img src={resolvedSrc} alt={alt} onError={() => setError(true)} className={className} />;
   }
   return (
     <div
