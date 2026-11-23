@@ -57,16 +57,22 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  Star,
   Trash2,
   TrendingUp,
   Upload,
   UserRound,
   Users,
+  Wand2,
   WandSparkles,
   Youtube,
   X,
   Zap,
 } from "lucide-react";
+import { BrandTrustDialog } from "@/components/brand-trust-dialog";
+import { AiPitchDrawer } from "@/components/ai-pitch-drawer";
+import { generateOpportunityPitch, type PitchTone } from "@/lib/ai-pitch-generator";
+import { getBrandReputation } from "@/data/brand-trust-data";
 import type { LucideIcon } from "lucide-react";
 import {
   Area,
@@ -3304,18 +3310,26 @@ function OpportunityApplyModal({
   onClose: () => void;
   onApplied?: () => void;
 }) {
+  const { profile } = useCurrentCreator();
   const [pitch, setPitch] = useState("");
   const [fee, setFee] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (apply) {
-      setPitch(
-        `Hi ${apply.business}, I’d love to bring ${apply.name} to life through warm, useful storytelling for my community.`,
-      );
+      setPitch(generateOpportunityPitch(profile, apply, "creative"));
       setFee(String(apply.budget.min));
     }
-  }, [apply]);
+  }, [apply, profile]);
+
+  const handleGenerateAiPitch = (tone: PitchTone) => {
+    if (!apply) return;
+    const generated = generateOpportunityPitch(profile, apply, tone);
+    setPitch(generated);
+    toast.success(
+      `Generated ${tone === "roi" ? "ROI-focused" : tone === "concise" ? "direct" : "creative"} pitch!`,
+    );
+  };
 
   const handleSubmit = async () => {
     if (!apply) return;
@@ -3352,9 +3366,41 @@ function OpportunityApplyModal({
                 {apply.business} · {formatRange(apply.budget)} · {placeLabel(apply.place)}
               </DialogDescription>
             </DialogHeader>
-            <Labeled label="Pitch Proposal">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">Pitch Proposal</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-[11px] font-bold text-coral hover:bg-coral-soft/50"
+                    onClick={() => handleGenerateAiPitch("creative")}
+                  >
+                    <Sparkles className="size-3" /> Creative
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-[11px] font-bold text-teal hover:bg-teal-soft/50"
+                    onClick={() => handleGenerateAiPitch("roi")}
+                  >
+                    <Sparkles className="size-3" /> ROI Focus
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted"
+                    onClick={() => handleGenerateAiPitch("concise")}
+                  >
+                    Concise
+                  </Button>
+                </div>
+              </div>
               <Textarea rows={5} value={pitch} onChange={(e) => setPitch(e.target.value)} />
-            </Labeled>
+            </div>
             <Labeled label={`Proposed fee (${apply.budget.currency})`}>
               <Input value={fee} onChange={(e) => setFee(e.target.value)} />
             </Labeled>
@@ -3373,6 +3419,8 @@ function OpportunityApplyModal({
 function OpportunitiesPage({ initialApplyId }: { initialApplyId?: string } = {}) {
   const { opportunities, refreshOpportunities } = useCurrentCreator();
   const [apply, setApply] = useState<WorkspaceOpportunityItem | null>(null);
+  const [trustBrand, setTrustBrand] = useState<string | null>(null);
+  const [pitchStudioOpen, setPitchStudioOpen] = useState(false);
   const [view, setView] = useState<"list" | "map" | "split">("split");
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("all");
@@ -3593,7 +3641,11 @@ function OpportunitiesPage({ initialApplyId }: { initialApplyId?: string } = {})
           key={o.id}
           className={cn("rounded-2xl transition min-w-0", focus === o.id && "ring-2 ring-coral")}
         >
-          <CampaignCard item={o} onApply={() => setApply(o)} />
+          <CampaignCard
+            item={o}
+            onApply={() => setApply(o)}
+            onViewTrust={(b) => setTrustBrand(b)}
+          />
         </div>
       ))}
       {!results.length && (
@@ -3609,10 +3661,20 @@ function OpportunitiesPage({ initialApplyId }: { initialApplyId?: string } = {})
   return (
     <div>
       <PageTop label="DISCOVER CAMPAIGNS WORLDWIDE">
-        <Badge tone="coral">
-          <Sparkles className="size-3" />
-          {results.length} MATCHES
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 font-bold text-xs border-coral/40 text-coral hover:bg-coral-soft/40 cursor-pointer"
+            onClick={() => setPitchStudioOpen(true)}
+          >
+            <Sparkles className="size-3.5" /> AI Pitch Studio
+          </Button>
+          <Badge tone="coral">
+            <Sparkles className="size-3" />
+            {results.length} MATCHES
+          </Badge>
+        </div>
       </PageTop>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
@@ -3661,7 +3723,15 @@ function OpportunitiesPage({ initialApplyId }: { initialApplyId?: string } = {})
             focus &&
             (() => {
               const o = results.find((r) => r.id === focus);
-              return o && <CampaignCard item={o} onApply={() => setApply(o)} />;
+              return (
+                o && (
+                  <CampaignCard
+                    item={o}
+                    onApply={() => setApply(o)}
+                    onViewTrust={(b) => setTrustBrand(b)}
+                  />
+                )
+              );
             })()}
         </div>
       </div>
@@ -3679,11 +3749,26 @@ function OpportunitiesPage({ initialApplyId }: { initialApplyId?: string } = {})
         onClose={() => setApply(null)}
         onApplied={() => void refreshOpportunities()}
       />
+      <BrandTrustDialog
+        brandName={trustBrand || ""}
+        open={!!trustBrand}
+        onOpenChange={(o) => !o && setTrustBrand(null)}
+      />
+      <AiPitchDrawer open={pitchStudioOpen} onOpenChange={setPitchStudioOpen} />
     </div>
   );
 }
 
-function CampaignCard({ item, onApply }: { item: WorkspaceOpportunityItem; onApply?: () => void }) {
+function CampaignCard({
+  item,
+  onApply,
+  onViewTrust,
+}: {
+  item: WorkspaceOpportunityItem;
+  onApply?: () => void;
+  onViewTrust?: (business: string) => void;
+}) {
+  const rep = getBrandReputation(item.business);
   return (
     <div className="creator-card flex flex-col justify-between p-5 min-w-0">
       <div>
@@ -3696,15 +3781,30 @@ function CampaignCard({ item, onApply }: { item: WorkspaceOpportunityItem; onApp
               loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-            <span className="absolute bottom-2 left-3 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
-              {item.business}
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewTrust?.(item.business);
+              }}
+              className="absolute bottom-2 left-3 rounded-md bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs flex items-center gap-1 hover:bg-black transition cursor-pointer"
+              title="Click to view verified escrow rating"
+            >
+              <span>{item.business}</span>
+              <Star className="size-2.5 fill-amber-400 text-amber-400" />
+              <span className="text-amber-400">{rep.rating}</span>
+            </button>
           </div>
         )}
         <div className="flex items-start justify-between gap-3">
-          <span className="grid size-11 place-items-center rounded-xl bg-teal-soft font-display text-xl text-teal shrink-0">
+          <button
+            type="button"
+            onClick={() => onViewTrust?.(item.business)}
+            className="grid size-11 place-items-center rounded-xl bg-teal-soft font-display text-xl text-teal shrink-0 hover:ring-2 hover:ring-teal transition cursor-pointer"
+            title="View verified brand reputation"
+          >
             {item.business.charAt(0)}
-          </span>
+          </button>
           <Badge tone="coral" className="shrink-0">
             {item.match}% MATCH
           </Badge>
@@ -3716,7 +3816,22 @@ function CampaignCard({ item, onApply }: { item: WorkspaceOpportunityItem; onApp
         <h3 className="mt-1 font-extrabold text-base sm:text-lg leading-snug line-clamp-2">
           {item.name}
         </h3>
-        <p className="truncate text-xs text-muted-foreground">{item.business}</p>
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <p className="truncate text-xs text-muted-foreground">{item.business}</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewTrust?.(item.business);
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500 hover:text-amber-600 transition hover:underline shrink-0 cursor-pointer"
+            title="View verified brand escrow rating and reviews"
+          >
+            <Star className="size-3 fill-amber-500 text-amber-500" />
+            <span>{rep.rating}</span>
+            <span className="text-[10px] text-teal font-semibold">({rep.reviewCount})</span>
+          </button>
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-3 border-y border-border/60 py-3 text-xs">
           <div className="min-w-0">
             <p className="text-[10px] text-muted-foreground uppercase font-medium">Deliverables</p>
@@ -3991,6 +4106,7 @@ function Conversation({
   const [reply, setReply] = useState("");
   const [compose, setCompose] = useState(false);
   const [sending, setSending] = useState(false);
+  const [trustOpen, setTrustOpen] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const collab = inquiry ? collabFor("inquiry", inquiry.id) : null;
   const isAccepted = inquiry?.status?.toLowerCase() === "accepted";
@@ -4136,8 +4252,20 @@ function Conversation({
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center border-b p-4 shrink-0 bg-card/40">
         <div className="min-w-0">
-          <h3 className="truncate font-extrabold">{inquiry.business}</h3>
-          <p className="truncate text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate font-extrabold">{inquiry.business}</h3>
+            <button
+              type="button"
+              onClick={() => setTrustOpen(true)}
+              className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+              title="Click to view verified escrow rating and creator reviews"
+            >
+              <Star className="size-2.5 fill-amber-500 text-amber-500" />
+              <span>{getBrandReputation(inquiry.business).rating}</span>
+              <span className="text-teal text-[9px] font-semibold">· Verified Brand 🛡️</span>
+            </button>
+          </div>
+          <p className="truncate text-xs text-muted-foreground mt-0.5">
             {inquiry.campaign} · {inquiry.budget}
           </p>
         </div>
@@ -4225,6 +4353,39 @@ function Conversation({
       </div>
 
       <div className="border-t p-4 bg-card shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2">
+          <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+            <Sparkles className="size-3 text-coral" /> Quick AI Responses:
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 text-[10px] gap-1 font-bold text-teal border-teal/30 hover:bg-teal-soft"
+              onClick={() =>
+                setReply(
+                  `Hi ${inquiry.business} Team! Thank you for reaching out. I'm excited about ${inquiry.campaign}. I accept the proposed scope and can have the first draft ready for your review within 5 business days. Let's make this collaboration a success!`
+                )
+              }
+            >
+              Accept Terms
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 text-[10px] gap-1 font-bold text-coral border-coral/30 hover:bg-coral-soft"
+              onClick={() =>
+                setReply(
+                  `Hi ${inquiry.business} Team! Thank you for considering me for ${inquiry.campaign}. Based on the deliverables and usage rights, my standard package rate is ${inquiry.budget || "₹25,000"} which includes 1 high-retention video, 2 supporting stories, and 30-day digital amplification rights. Would this work for your team?`
+                )
+              }
+            >
+              Propose Rate
+            </Button>
+          </div>
+        </div>
         <Textarea
           value={reply}
           onChange={(e) => setReply(e.target.value)}
@@ -4274,6 +4435,11 @@ function Conversation({
           </Button>
         </div>
       </div>
+      <BrandTrustDialog
+        brandName={inquiry.business}
+        open={trustOpen}
+        onOpenChange={setTrustOpen}
+      />
     </div>
   );
 }
