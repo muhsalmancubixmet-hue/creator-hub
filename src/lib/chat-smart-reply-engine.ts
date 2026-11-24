@@ -207,6 +207,28 @@ export function polishQuickCue(
 
   const lower = text.toLowerCase();
 
+  // If cue is a greeting / small talk (e.g. "hey how are you", "hi", "good morning")
+  if (
+    lower.includes("how are you") ||
+    lower.includes("how r u") ||
+    lower.includes("hope you") ||
+    lower.includes("good morning") ||
+    lower.includes("good afternoon") ||
+    lower === "hi" ||
+    lower === "hello" ||
+    lower.startsWith("hey")
+  ) {
+    if (lastBrandMessage && /date|upload|draft|when/i.test(lastBrandMessage)) {
+      return `Hi ${brand} Team! Hope you're doing great and having a productive week! Regarding the next draft upload: I am wrapping up the final color grade and audio mix, and will have the revised cut uploaded by this Friday afternoon for your review. Hope all is well on your end!`;
+    }
+    return `Hi ${brand} Team! Hope you're doing well and having a wonderful week! I'm currently working on our campaign deliverables and making solid progress. Really excited about this collaboration!`;
+  }
+
+  // If cue is an affirmative confirmation (e.g. "ok", "sure", "agreed", "done")
+  if (lower === "ok" || lower === "sure" || lower === "yes" || lower === "done" || lower === "agreed") {
+    return `Hi ${brand} Team! Sounds great, confirmed on my end. I will proceed with this plan and keep you updated as the next milestone is ready.`;
+  }
+
   // If cue mentions days, date, friday, etc.
   if (
     lower.includes("friday") ||
@@ -215,7 +237,7 @@ export function polishQuickCue(
     lower.includes("date") ||
     lower.includes("upload")
   ) {
-    return `Hi ${brand} Team! Just wanted to update you on the timeline: I will have the updated draft uploaded by ${text}. Really appreciate your patience, and looking forward to your thoughts on the final cut!`;
+    return `Hi ${brand} Team! Just wanted to share a quick update on the delivery schedule: I am finalizing the current cut and will have the updated draft uploaded by ${text}. Really appreciate your patience!`;
   }
 
   // If cue mentions extension or more time
@@ -239,6 +261,6 @@ export function polishQuickCue(
     return `Hi ${brand} Team! Quick note regarding production assets: could you please provide ${text} so we can maintain full brand consistency in the final export?`;
   }
 
-  // General fallback: formal corporate polish
-  return `Hi ${brand} Team! Quick update from my end regarding our campaign: ${text}. Please let me know if this aligns with your expectations, or if you need any further clarifications!`;
+  // Clean, natural fallback
+  return `Hi ${brand} Team! ${text.charAt(0).toUpperCase() + text.slice(1)}. Looking forward to hearing your thoughts and making this campaign a huge success!`;
 }

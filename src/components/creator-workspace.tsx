@@ -42,6 +42,7 @@ import {
   LayoutDashboard,
   Link2,
   Linkedin,
+  Loader2,
   Mail,
   MapPin,
   Menu,
@@ -78,6 +79,8 @@ import {
   polishQuickCue,
   detectMessageIntent,
 } from "@/lib/chat-smart-reply-engine";
+import { useCreatorSubscription, CREATOR_PLANS } from "@/lib/creator-subscription";
+import { generateGeminiChatReply, isGeminiConfigured } from "@/lib/gemini-ai";
 import type { LucideIcon } from "lucide-react";
 import {
   Area,
@@ -173,6 +176,7 @@ type PageKey =
   | "inquiries"
   | "analytics"
   | "settings"
+  | "subscription"
   | "collab";
 type AppPath =
   | "/"
@@ -185,7 +189,8 @@ type AppPath =
   | "/opportunities"
   | "/inquiries"
   | "/analytics"
-  | "/settings";
+  | "/settings"
+  | "/subscription";
 
 const nav: Array<{ to: AppPath; label: string; icon: LucideIcon; key: PageKey; hint?: string }> = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, key: "dashboard" },
@@ -198,6 +203,7 @@ const nav: Array<{ to: AppPath; label: string; icon: LucideIcon; key: PageKey; h
   { to: "/opportunities", label: "Opportunities", icon: Sparkles, key: "opportunities" },
   { to: "/inquiries", label: "Inquiries", icon: Mail, key: "inquiries" },
   { to: "/analytics", label: "Analytics", icon: BarChart3, key: "analytics" },
+  { to: "/subscription", label: "Plans & Pro AI", icon: Zap, key: "subscription", hint: "PRO AI" },
   { to: "/settings", label: "Settings", icon: Settings, key: "settings" },
 ];
 const titles: Record<PageKey, { title: string; subtitle: string }> = {
@@ -224,6 +230,10 @@ const titles: Record<PageKey, { title: string; subtitle: string }> = {
   },
   inquiries: { title: "Inquiries", subtitle: "Keep every brand conversation moving." },
   analytics: { title: "Analytics", subtitle: "Understand what is earning attention." },
+  subscription: {
+    title: "Plans & Pro AI",
+    subtitle: "Supercharge your creator sponsorships with Google Gemini AI and Pro privileges.",
+  },
   settings: { title: "Settings", subtitle: "Manage your workspace, visibility and security." },
 };
 
@@ -305,6 +315,7 @@ function CreatorWorkspaceLayout({
           )}
           {page === "inquiries" && <InquiriesPage />}
           {page === "analytics" && <AnalyticsPage />}
+          {page === "subscription" && <SubscriptionPlansPage />}
           {page === "settings" && <SettingsPage />}
           {page === "collab" && children}
         </main>
@@ -4139,13 +4150,55 @@ function Conversation({
     );
   }, [lastBrandMessage, inquiry?.business, inquiry?.campaign, inquiry?.budget]);
 
-  const handlePolishCue = () => {
+  const { isPro, aiCredits, consumeAiCredit, upgradeToPro } = useCreatorSubscription();
+  const [isPolishing, setIsPolishing] = useState(false);
+
+  const handlePolishCue = async () => {
     if (!quickCue.trim()) return;
-    const polished = polishQuickCue(quickCue, inquiry?.business || "", lastBrandMessage);
-    setReply(polished);
-    setQuickCue("");
-    setShowCueBar(false);
-    toast.success("AI polished your message!");
+
+    if (!isPro && aiCredits <= 0) {
+      toast.error(
+        "You have used all 5 free AI trial credits! Upgrade to Pro Creator for unlimited Gemini AI."
+      );
+      return;
+    }
+
+    setIsPolishing(true);
+    try {
+      const allowed = consumeAiCredit();
+      if (!allowed) {
+        toast.error("Upgrade to Pro Creator to continue using AI!");
+        return;
+      }
+
+      const res = await generateGeminiChatReply({
+        brandName: inquiry?.business || "Brand",
+        campaignName: inquiry?.campaign,
+        lastBrandMessage,
+        creatorCue: quickCue,
+        chatHistory: messages.map((m) => ({
+          sender: m.sender_name || (m.is_me ? "You" : inquiry.business),
+          body: m.body,
+          isMe: Boolean(m.is_me || m.is_from_creator),
+        })),
+      });
+
+      setReply(res.text);
+      setQuickCue("");
+      setShowCueBar(false);
+
+      if (res.isGemini) {
+        toast.success("✨ Polished with Google Gemini Flash!");
+      } else {
+        toast.success("AI polished your message!");
+      }
+    } catch {
+      const fallback = polishQuickCue(quickCue, inquiry?.business || "", lastBrandMessage);
+      setReply(fallback);
+      setShowCueBar(false);
+    } finally {
+      setIsPolishing(false);
+    }
   };
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -4411,6 +4464,20 @@ function Conversation({
               <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
                 <Sparkles className="size-3 text-coral" /> Quick AI Responses:
               </span>
+              {isPro ? (
+                <span className="rounded-full bg-teal-soft border border-teal/30 px-2 py-0.5 text-[9px] font-extrabold text-teal flex items-center gap-1">
+                  <Sparkles className="size-2.5" /> PRO GEMINI AI
+                </span>
+              ) : (
+                <Link
+                  to="/subscription"
+                  className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 transition"
+                  title="Click to view subscription plans and unlock unlimited Gemini AI"
+                >
+                  <span>⚡ Free Trial ({aiCredits}/5 left)</span>
+                  <span className="underline font-extrabold">Upgrade</span>
+                </Link>
+              )}
               <span className="rounded-full bg-coral/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-coral">
                 {detectedIntent} query
               </span>
@@ -4445,9 +4512,18 @@ function Conversation({
                 size="sm"
                 className="h-7 px-3 text-[10px] font-bold shrink-0 gap-1"
                 onClick={handlePolishCue}
-                disabled={!quickCue.trim()}
+                disabled={!quickCue.trim() || isPolishing}
               >
-                <Sparkles className="size-3" /> Polish
+                {isPolishing ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin" />
+                    <span>Polishing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-3" /> Polish
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -5633,5 +5709,203 @@ function LocationSection({
         />
       </div>
     </FormSection>
+  );
+}
+
+function SubscriptionPlansPage() {
+  const { tier, isPro, aiCredits, upgradeToPro, downgradeToFree } = useCreatorSubscription();
+
+  return (
+    <div className="space-y-6">
+      <PageTop
+        title="Subscription & Plans"
+        subtitle="Manage your creator privileges, monetization tools, and Google Gemini AI suite."
+        badge={
+          isPro ? (
+            <Badge tone="teal" className="gap-1 font-bold">
+              <ShieldCheck className="size-3" /> PRO CREATOR ACTIVE
+            </Badge>
+          ) : (
+            <Badge tone="coral" className="gap-1 font-bold">
+              FREE CREATOR
+            </Badge>
+          )
+        }
+      />
+
+      {/* Active Tier Highlight Banner */}
+      <div
+        className={cn(
+          "rounded-2xl border p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs",
+          isPro
+            ? "border-teal/30 bg-teal-soft/40"
+            : "border-border bg-card"
+        )}
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
+              {isPro ? <Zap className="size-5" /> : <UserRound className="size-5" />}
+            </span>
+            <div>
+              <h3 className="font-display text-lg font-extrabold text-foreground">
+                Current Plan: {isPro ? "Pro Creator (₹999/mo)" : "Free Creator (₹0)"}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isPro
+                  ? "✨ Unlimited Google Gemini AI, verified badge, and priority brand discovery are active."
+                  : `⚡ You have ${aiCredits} out of 5 free Google Gemini AI trial credits remaining.`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end md:self-center">
+          {isPro ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs font-semibold"
+              onClick={() => {
+                downgradeToFree();
+                toast.info("Reverted to Free Creator plan (testing mode).");
+              }}
+            >
+              Revert to Free (Test)
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="gap-1.5 font-bold text-xs"
+              onClick={() => {
+                upgradeToPro();
+                toast.success("Welcome to Pro Creator! Google Gemini AI & Pro features unlocked.");
+              }}
+            >
+              <Zap className="size-3.5 fill-current" /> Upgrade to Pro (₹999/mo)
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Side-by-Side Comparison Grid */}
+      <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
+        {/* FREE PLAN CARD */}
+        <div className={cn("panel flex flex-col p-6 rounded-2xl border bg-card", !isPro && "ring-2 ring-primary/40")}>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Free Tier</p>
+              <h4 className="font-display text-2xl font-black mt-1">Free Creator</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Essential portfolio showcase & manual messaging
+              </p>
+            </div>
+            {!isPro && (
+              <Badge tone="teal" className="text-[10px] font-bold">
+                ACTIVE
+              </Badge>
+            )}
+          </div>
+
+          <div className="my-5">
+            <span className="font-display text-3xl font-black">₹0</span>
+            <span className="text-xs text-muted-foreground ml-1">/ month forever</span>
+          </div>
+
+          <ul className="flex-1 space-y-2.5 text-xs">
+            {CREATOR_PLANS.FREE.features.map((feat) => (
+              <li key={feat} className="flex items-center gap-2">
+                <Check className="size-4 shrink-0 text-teal" />
+                <span>{feat}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-6 pt-4 border-t">
+            {!isPro ? (
+              <Button disabled variant="outline" className="w-full text-xs font-bold">
+                Current Plan
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full text-xs font-bold"
+                onClick={() => {
+                  downgradeToFree();
+                  toast.info("Reverted to Free Creator.");
+                }}
+              >
+                Switch to Free
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* PRO CREATOR PLAN CARD */}
+        <div
+          className={cn(
+            "panel flex flex-col p-6 rounded-2xl border bg-card relative shadow-md",
+            isPro ? "border-teal ring-2 ring-teal/50" : "border-coral/50 ring-2 ring-coral/40"
+          )}
+        >
+          <div className="absolute -top-3 right-6">
+            <span className="rounded-full bg-coral px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-primary-foreground shadow-xs">
+              Recommended for Monetization
+            </span>
+          </div>
+
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-bold text-coral uppercase tracking-wider">Professional Tier</p>
+              <h4 className="font-display text-2xl font-black mt-1 flex items-center gap-1.5">
+                Pro Creator <Zap className="size-5 fill-coral text-coral" />
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Full Google Gemini AI assistant & verified business privileges
+              </p>
+            </div>
+            {isPro && (
+              <Badge tone="teal" className="text-[10px] font-bold">
+                ACTIVE
+              </Badge>
+            )}
+          </div>
+
+          <div className="my-5">
+            <span className="font-display text-3xl font-black text-foreground">₹999</span>
+            <span className="text-xs text-muted-foreground ml-1">/ month</span>
+          </div>
+
+          <ul className="flex-1 space-y-2.5 text-xs">
+            {CREATOR_PLANS.PRO.features.map((feat) => (
+              <li key={feat} className="flex items-center gap-2 font-medium">
+                <Check className="size-4 shrink-0 text-coral" />
+                <span className={feat.includes("Gemini") ? "font-bold text-foreground" : ""}>
+                  {feat}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-6 pt-4 border-t">
+            {isPro ? (
+              <Button disabled variant="secondary" className="w-full text-xs font-bold text-teal">
+                ✓ Pro Privileges Active
+              </Button>
+            ) : (
+              <Button
+                className="w-full text-xs font-bold gap-1.5 bg-coral text-primary-foreground hover:bg-coral/90"
+                onClick={() => {
+                  upgradeToPro();
+                  toast.success("Welcome to Pro Creator! Google Gemini AI & Pro features unlocked.");
+                }}
+              >
+                <Zap className="size-4 fill-current" /> Upgrade to Pro Creator (₹999/mo)
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

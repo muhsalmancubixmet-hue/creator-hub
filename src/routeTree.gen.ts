@@ -22,6 +22,7 @@ import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SocialMediaRouteImport } from './routes/social-media'
+import { Route as SubscriptionRouteImport } from './routes/subscription'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as WebsiteRouteImport } from './routes/website'
 import { Route as CollabsIdRouteImport } from './routes/collabs.$id'
@@ -92,6 +93,11 @@ const SocialMediaRoute = SocialMediaRouteImport.update({
   path: '/social-media',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubscriptionRoute = SubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
+  '/subscription': typeof SubscriptionRoute
   '/verify-email': typeof VerifyEmailRoute
   '/website': typeof WebsiteRoute
   '/collabs/$id': typeof CollabsIdRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
+  '/subscription': typeof SubscriptionRoute
   '/verify-email': typeof VerifyEmailRoute
   '/website': typeof WebsiteRoute
   '/collabs/$id': typeof CollabsIdRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/social-media': typeof SocialMediaRoute
+  '/subscription': typeof SubscriptionRoute
   '/verify-email': typeof VerifyEmailRoute
   '/website': typeof WebsiteRoute
   '/collabs/$id': typeof CollabsIdRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/social-media'
+    | '/subscription'
     | '/verify-email'
     | '/website'
     | '/collabs/$id'
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/social-media'
+    | '/subscription'
     | '/verify-email'
     | '/website'
     | '/collabs/$id'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/social-media'
+    | '/subscription'
     | '/verify-email'
     | '/website'
     | '/collabs/$id'
@@ -246,6 +258,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   SocialMediaRoute: typeof SocialMediaRoute
+  SubscriptionRoute: typeof SubscriptionRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   WebsiteRoute: typeof WebsiteRoute
   CollabsIdRoute: typeof CollabsIdRoute
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subscription': {
+      id: '/subscription'
+      path: '/subscription'
+      fullPath: '/subscription'
+      preLoaderRoute: typeof SubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify-email': {
       id: '/verify-email'
       path: '/verify-email'
@@ -390,6 +410,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   SocialMediaRoute: SocialMediaRoute,
+  SubscriptionRoute: SubscriptionRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   WebsiteRoute: WebsiteRoute,
   CollabsIdRoute: CollabsIdRoute,
