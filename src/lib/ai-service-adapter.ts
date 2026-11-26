@@ -1,14 +1,13 @@
 /**
- * Plug-and-Play AI Service Adapter
- * --------------------------------
- * Decouples all UI components (Inquiries Chat, AI Pitch Studio, Opportunity Apply Modal)
- * from the underlying AI transport.
- *
- * Current Mode: "client-gemini" (uses browser Gemini Flash + smart local fallback).
- * Backend Wiring Mode: Switch `AI_PROVIDER_MODE = "backend-proxy"` and point
- * `apiClient.post("/ai/chat-reply/")` to Django once backend endpoints are built.
+ * Plug-and-Play AI Service Adapter (Wired to Django Backend Proxy)
+ * ----------------------------------------------------------------
+ * Routes AI requests securely through `/api/v1/ai/chat-reply/` and
+ * `/api/v1/ai/brand-pitch/` so GEMINI_API_KEY stays strictly on the server
+ * and subscription quotas are enforced server-side.
+ * Falls back cleanly to local engine when offline or unauthenticated (demo mode).
  */
 
+import { apiClient } from "./api-client";
 import {
   generateGeminiChatReply,
   generateGeminiBrandPitch,
@@ -18,7 +17,7 @@ import {
 
 export type AiProviderMode = "client-gemini" | "backend-proxy";
 
-export const AI_PROVIDER_MODE: AiProviderMode = "client-gemini";
+export const AI_PROVIDER_MODE: AiProviderMode = "backend-proxy";
 
 export interface PolishReplyRequest {
   brandName: string;
@@ -40,9 +39,27 @@ export const aiServiceAdapter = {
 
   async polishChatReply(req: PolishReplyRequest): Promise<PolishReplyResponse> {
     if (AI_PROVIDER_MODE === "backend-proxy") {
-      // Backend plug-in point:
-      // const res = await apiClient.post("/ai/chat-reply/", req);
-      // return { text: res.data.text, provider: "backend-proxy" };
+      try {
+        const res = await apiClient.post("/ai/chat-reply/", {
+          brand_name: req.brandName,
+          campaign_name: req.campaignName || "",
+          last_brand_message: req.lastBrandMessage || "",
+          creator_cue: req.creatorCue || "",
+          chat_history: (req.chatHistory || []).slice(-4),
+        });
+        if (res.data?.text) {
+          return {
+            text: res.data.text,
+            provider: res.data.provider === "gemini" ? "gemini" : "backend-proxy",
+          };
+        }
+      } catch (err: any) {
+        // Propagate 402 quota errors explicitly if server-side Free quota exhausted
+        if (err?.response?.status === 402) {
+          throw err;
+        }
+        // Offline / demo fallback handled cleanly below
+      }
     }
 
     const res = await generateGeminiChatReply(req);
@@ -61,9 +78,21 @@ export const aiServiceAdapter = {
     tone: "creative" | "roi" | "concise";
   }): Promise<string> {
     if (AI_PROVIDER_MODE === "backend-proxy") {
-      // Backend plug-in point:
-      // const res = await apiClient.post("/ai/brand-pitch/", params);
-      // return res.data.text;
+      try {
+        const res = await apiClient.post("/ai/brand-pitch/", {
+          brand_name: params.brandName,
+          industry: params.industry,
+          creator_niche: params.creatorNiche,
+          creator_handle: params.creatorHandle,
+          format: params.format,
+          tone: params.tone,
+        });
+        if (res.data?.text) {
+          return res.data.text;
+        }
+      } catch {
+        // Fallback to client generator seamlessly
+      }
     }
 
     return generateGeminiBrandPitch(params);

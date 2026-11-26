@@ -20,6 +20,7 @@ interface UseInquirySocketOptions {
   onNewMessage?: (message: ChatMessagePayload) => void;
   onMessagesRead?: (readerId: string) => void;
   onTyping?: (data: { userId: string; senderName: string; isTyping: boolean }) => void;
+  onError?: (error: { code?: string; detail: string }) => void;
 }
 
 function getWsBaseUrl(): string {
@@ -41,6 +42,7 @@ export function useInquirySocket({
   onNewMessage,
   onMessagesRead,
   onTyping,
+  onError,
 }: UseInquirySocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
@@ -49,12 +51,14 @@ export function useInquirySocket({
   const onNewMessageRef = useRef(onNewMessage);
   const onMessagesReadRef = useRef(onMessagesRead);
   const onTypingRef = useRef(onTyping);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
     onNewMessageRef.current = onNewMessage;
     onMessagesReadRef.current = onMessagesRead;
     onTypingRef.current = onTyping;
-  }, [onNewMessage, onMessagesRead, onTyping]);
+    onErrorRef.current = onError;
+  }, [onNewMessage, onMessagesRead, onTyping, onError]);
 
   useEffect(() => {
     if (!inquiryId || !token || inquiryId === "empty") {
@@ -88,6 +92,11 @@ export function useInquirySocket({
             userId: data.user_id,
             senderName: data.sender_name,
             isTyping: data.is_typing,
+          });
+        } else if (data.type === "error" || data.error) {
+          onErrorRef.current?.({
+            code: data.code,
+            detail: data.detail || data.error || "Action rejected by server.",
           });
         }
       } catch {

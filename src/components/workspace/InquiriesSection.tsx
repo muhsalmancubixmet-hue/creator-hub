@@ -372,7 +372,11 @@ function Conversation({
       } else {
         toast.success("AI polished your message!");
       }
-    } catch {
+    } catch (err: any) {
+      if (err?.response?.status === 402) {
+        toast.error(err?.response?.data?.detail || "Free AI quota reached! Upgrade to Pro Creator.");
+        return;
+      }
       const fallback = polishQuickCue(quickCue, inquiry?.business || "", lastBrandMessage);
       setReply(fallback);
       setShowCueBar(false);
@@ -416,6 +420,9 @@ function Conversation({
       onReplied?.();
     },
     onMessagesRead: () => {},
+    onError: (err) => {
+      toast.error(err.detail);
+    },
   });
 
   useEffect(() => {
