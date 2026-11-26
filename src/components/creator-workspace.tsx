@@ -66,6 +66,7 @@ import {
   Zap,
 } from "lucide-react";
 import { BrandTrustDialog } from "@/components/brand-trust-dialog";
+import { SocialFeedManager } from "@/components/workspace/SocialFeedManager";
 import { AiPitchDrawer } from "@/components/ai-pitch-drawer";
 import { generateOpportunityPitch, type PitchTone } from "@/lib/ai-pitch-generator";
 import { getBrandReputation } from "@/data/brand-trust-data";
@@ -1825,6 +1826,7 @@ function AddSocial({
 
 function PortfolioPage() {
   const { portfolio, refreshPortfolio } = useCurrentCreator();
+  const [viewMode, setViewMode] = useState<"feed" | "legacy">("feed");
   const [reorder, setReorder] = useState(false);
   const [selected, setSelected] = useState<WorkspacePortfolioItem | null>(null);
   const [add, setAdd] = useState(false);
@@ -1843,46 +1845,70 @@ function PortfolioPage() {
   return (
     <div>
       <PageTop label="YOUR BEST WORK, BEAUTIFULLY CURATED">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
-            variant={reorder ? "secondary" : "outline"}
-            onClick={() => {
-              setReorder(!reorder);
-              toast.info(reorder ? "New order saved" : "Drag handles are now active");
-            }}
+            size="sm"
+            variant={viewMode === "feed" ? "default" : "outline"}
+            onClick={() => setViewMode("feed")}
           >
-            <Grid3X3 />
-            {reorder ? "Save order" : "Reorder"}
+            Feed Posts & Collabs
           </Button>
-          <Button onClick={() => setAdd(true)}>
-            <Plus />
-            Add Portfolio Item
+          <Button
+            size="sm"
+            variant={viewMode === "legacy" ? "default" : "outline"}
+            onClick={() => setViewMode("legacy")}
+          >
+            Portfolio Grid ({portfolio.length})
           </Button>
+          {viewMode === "legacy" && (
+            <>
+              <Button
+                variant={reorder ? "secondary" : "outline"}
+                onClick={() => {
+                  setReorder(!reorder);
+                  toast.info(reorder ? "New order saved" : "Drag handles are now active");
+                }}
+              >
+                <Grid3X3 />
+                {reorder ? "Save order" : "Reorder"}
+              </Button>
+              <Button onClick={() => setAdd(true)}>
+                <Plus />
+                Add Portfolio Item
+              </Button>
+            </>
+          )}
         </div>
       </PageTop>
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
-        {["All work", "Reels", "Campaigns", "Travel", "Food", "Fashion"].map((x) => (
-          <Button
-            key={x}
-            size="sm"
-            variant={filter === x ? "default" : "outline"}
-            onClick={() => setFilter(x)}
-          >
-            {x}
-          </Button>
-        ))}
-      </div>
-      {loading ? (
-        <GridSkeleton />
-      ) : items.length ? (
-        <PortfolioGrid items={items} onSelect={setSelected} reorder={reorder} />
+      {viewMode === "feed" ? (
+        <SocialFeedManager />
       ) : (
-        <EmptyState
-          title="Showcase your best work"
-          text="Add your first project or campaign reel to attract brand sponsors."
-          cta="+ Add First Item"
-          onCta={() => setAdd(true)}
-        />
+        <>
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+            {["All work", "Reels", "Campaigns", "Travel", "Food", "Fashion"].map((x) => (
+              <Button
+                key={x}
+                size="sm"
+                variant={filter === x ? "default" : "outline"}
+                onClick={() => setFilter(x)}
+              >
+                {x}
+              </Button>
+            ))}
+          </div>
+          {loading ? (
+            <GridSkeleton />
+          ) : items.length ? (
+            <PortfolioGrid items={items} onSelect={setSelected} reorder={reorder} />
+          ) : (
+            <EmptyState
+              title="Showcase your best work"
+              text="Add your first project or campaign reel to attract brand sponsors."
+              cta="+ Add First Item"
+              onCta={() => setAdd(true)}
+            />
+          )}
+        </>
       )}
       <PortfolioPreview
         item={selected}
