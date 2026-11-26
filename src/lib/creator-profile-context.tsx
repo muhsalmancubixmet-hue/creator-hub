@@ -601,6 +601,8 @@ export function CreatorAvatar({
       <img
         src={resolvedSrc}
         alt={name || "Creator avatar"}
+        loading="lazy"
+        decoding="async"
         onError={() => setError(true)}
         className={cn("object-cover", className)}
       />
@@ -641,7 +643,16 @@ export function CreatorCover({
   const resolvedSrc = resolveMediaUrl(src);
 
   if (resolvedSrc && !error) {
-    return <img src={resolvedSrc} alt={alt} onError={() => setError(true)} className={className} />;
+    return (
+      <img
+        src={resolvedSrc}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onError={() => setError(true)}
+        className={className}
+      />
+    );
   }
   return (
     <div
