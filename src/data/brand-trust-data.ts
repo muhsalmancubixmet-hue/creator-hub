@@ -153,13 +153,16 @@ const IN_MEMORY_BRAND_REPUTATIONS: Record<string, BrandReputation> = {};
  */
 export function getBrandReputation(brandName: string): BrandReputation {
   const clean = (brandName || "").trim();
-  if (IN_MEMORY_BRAND_REPUTATIONS[clean]) {
-    return IN_MEMORY_BRAND_REPUTATIONS[clean];
+  const cached = IN_MEMORY_BRAND_REPUTATIONS[clean];
+  if (cached) {
+    return cached;
   }
 
-  if (BRAND_DATA[clean]) {
-    IN_MEMORY_BRAND_REPUTATIONS[clean] = JSON.parse(JSON.stringify(BRAND_DATA[clean]));
-    return IN_MEMORY_BRAND_REPUTATIONS[clean];
+  const knownBrand = BRAND_DATA[clean];
+  if (knownBrand) {
+    const cloned = JSON.parse(JSON.stringify(knownBrand)) as BrandReputation;
+    IN_MEMORY_BRAND_REPUTATIONS[clean] = cloned;
+    return cloned;
   }
 
   // Derive stable pseudo-metrics from name for consistency

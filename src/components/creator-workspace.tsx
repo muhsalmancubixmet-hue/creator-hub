@@ -29,6 +29,7 @@ import {
   Eye,
   FileText,
   Globe2,
+  Grid3X3,
   Heart,
   HelpCircle,
   Home,

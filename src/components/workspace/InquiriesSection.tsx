@@ -312,7 +312,7 @@ function Conversation({
       (m) => m.is_from_business || m.is_from_brand || (!m.is_me && !m.is_from_creator),
     );
     if (brandMsgs.length > 0) {
-      return brandMsgs[brandMsgs.length - 1].body;
+      return brandMsgs[brandMsgs.length - 1]?.body || inquiry?.message || "";
     }
     return inquiry?.message || "";
   }, [messages, inquiry?.message]);
@@ -353,7 +353,7 @@ function Conversation({
 
       const res = await aiServiceAdapter.polishChatReply({
         brandName: inquiry?.business || "Brand",
-        campaignName: inquiry?.campaign,
+        ...(inquiry?.campaign ? { campaignName: inquiry.campaign } : {}),
         lastBrandMessage,
         creatorCue: quickCue,
         chatHistory: messages.map((m) => ({

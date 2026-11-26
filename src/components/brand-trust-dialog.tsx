@@ -79,7 +79,10 @@ export function BrandTrustDialog({ brandName, open, onOpenChange }: BrandTrustDi
                 <DialogTitle className="font-display text-xl font-extrabold">
                   {rep.brandName}
                 </DialogTitle>
-                <Badge tone="teal" className="gap-1 text-[10px] font-bold">
+                <Badge
+                  variant="secondary"
+                  className="gap-1 border-teal/20 bg-teal-soft text-[10px] font-bold text-teal"
+                >
                   <ShieldCheck className="size-3" />
                   VERIFIED
                 </Badge>
