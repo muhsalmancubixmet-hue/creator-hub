@@ -1,8 +1,8 @@
 /**
  * Cross-Portal Social Post Composer, Collab Inbox & Saved Bookmarks (Creator Hub)
  * -------------------------------------------------------------------------------
- * Allows creators to upload Videos/Reels (up to 150 MB, unrestricted duration) & Images/Carousels,
- * @mention Businesses/Creators with live typeahead, invite Co-Authors, and manage Collab Requests.
+ * Allows creators to upload Videos/Reels (unlimited size/duration with instant poster capture) & Images/Carousels,
+ * attach multiple external platform links, @mention Businesses/Creators, and preview/respond to Collab Requests.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,12 +11,16 @@ import {
   BadgeCheck,
   Bookmark,
   Check,
+  Clock,
   ExternalLink,
   Film,
   ImagePlus,
+  Link2,
   Loader2,
+  Play,
   Plus,
   Send,
+  Share2,
   Sparkles,
   Trash2,
   Users,
@@ -38,9 +42,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  PLATFORM_LINK_OPTIONS,
+  formatPostTimestamp,
   socialFeedApi,
   type ActorCard,
   type CollabInboxEntry,
+  type ExternalPlatformLink,
+  type PostMediaItemData,
   type PostType,
   type SocialPostData,
   type UploadedFeedMedia,
@@ -49,6 +57,45 @@ import {
 const PUBLIC_MARKETPLACE_URL = (
   (import.meta.env["VITE_SITE_URL"] as string) || "http://localhost:8082"
 ).replace(/\/+$/, "");
+
+function MediaThumbnail({
+  media,
+  className = "size-16 rounded-xl",
+}: {
+  media?: PostMediaItemData | undefined;
+  className?: string;
+}) {
+  if (!media) {
+    return (
+      <div className={`grid place-items-center bg-muted ${className}`}>
+        <Video className="size-5 text-muted-foreground" />
+      </div>
+    );
+  }
+  if (media.media_type === "VIDEO") {
+    return (
+      <div className={`relative overflow-hidden bg-black ${className}`}>
+        {media.thumbnail_url ? (
+          <img src={media.thumbnail_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <video
+            src={media.media_url}
+            muted
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-cover"
+          />
+        )}
+        <span className="absolute inset-0 grid place-items-center bg-black/25">
+          <span className="grid size-6 place-items-center rounded-full bg-black/70 text-white">
+            <Play className="size-3 fill-current" />
+          </span>
+        </span>
+      </div>
+    );
+  }
+  return <img src={media.media_url} alt="" className={`object-cover bg-muted ${className}`} />;
+}
 
 function PostPreviewCard({
   post,
@@ -100,8 +147,8 @@ function PostPreviewCard({
                 </span>
               )}
             </p>
-            <p className="text-[10px] text-muted-foreground">
-              {post.post_type} · {post.is_public ? "Public Explore" : "Private"}
+            <p className="truncate text-[10px] text-muted-foreground">
+              {post.post_type} · {formatPostTimestamp(post.created_at)}
             </p>
           </div>
         </div>
@@ -133,6 +180,7 @@ function PostPreviewCard({
           isVideo ? (
             <video
               src={firstMedia.media_url}
+              poster={firstMedia.thumbnail_url || undefined}
               controls
               playsInline
               muted
@@ -162,6 +210,22 @@ function PostPreviewCard({
           {post.caption || "No caption"}
         </p>
 
+        {post.external_links?.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {post.external_links.map((lnk, idx) => (
+              <a
+                key={idx}
+                href={lnk.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold hover:bg-secondary/80"
+              >
+                <Link2 className="size-2.5" /> {lnk.label || lnk.platform}
+              </a>
+            ))}
+          </div>
+        )}
+
         {post.pending_collaborators.length > 0 && (
           <p className="rounded-lg bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
             Waiting for collab accept:{" "}
@@ -170,7 +234,12 @@ function PostPreviewCard({
         )}
 
         <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
-          <span>{post.views_count} views</span>
+          <div className="flex items-center gap-2.5">
+            <span>{post.views_count} views</span>
+            <span className="inline-flex items-center gap-0.5">
+              <Share2 className="size-3" /> {post.shares_count}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() => onToggleSave(post.id)}
@@ -192,6 +261,7 @@ export function SocialFeedManager() {
   const [savedPosts, setSavedPosts] = useState<SocialPostData[]>([]);
   const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [previewEntry, setPreviewEntry] = useState<CollabInboxEntry | null>(null);
 
   // Composer state
   const [postType, setPostType] = useState<PostType>("REEL");
@@ -200,6 +270,12 @@ export function SocialFeedManager() {
   const [uploadedSlides, setUploadedSlides] = useState<UploadedFeedMedia[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [publishing, setPublishing] = useState(false);
+
+  // Multiple external platform links
+  const [externalLinks, setExternalLinks] = useState<ExternalPlatformLink[]>([]);
+  const [draftPlatform, setDraftPlatform] = useState<string>("Instagram");
+  const [draftLinkLabel, setDraftLinkLabel] = useState("");
+  const [draftLinkUrl, setDraftLinkUrl] = useState("");
 
   // @Mention live caption autocomplete state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -223,7 +299,7 @@ export function SocialFeedManager() {
       setRequests(reqRes.results || []);
       setSavedPosts(savedRes.results || []);
     } catch {
-      // Keep UI graceful if user isn't logged into API yet
+      // Graceful fallback
     } finally {
       setLoading(false);
     }
@@ -233,7 +309,6 @@ export function SocialFeedManager() {
     void loadAll();
   }, [loadAll]);
 
-  // Fetch @mention suggestions on caption '@' token
   useEffect(() => {
     if (mentionQuery === null) {
       setMentionSuggestions([]);
@@ -248,7 +323,6 @@ export function SocialFeedManager() {
     return () => clearTimeout(timer);
   }, [mentionQuery]);
 
-  // Fetch Collaborator picker candidates
   useEffect(() => {
     if (!composerOpen) return;
     const timer = setTimeout(() => {
@@ -263,23 +337,37 @@ export function SocialFeedManager() {
   const handleCaptionChange = (val: string) => {
     setCaption(val);
     const cursorPos = captionRef.current?.selectionStart ?? val.length;
-    const textBefore = val.slice(0, cursorPos);
-    const match = textBefore.match(/@([a-zA-Z0-9._-]{0,40})$/);
-    if (match) {
-      setMentionQuery(match[1] ?? "");
-    } else {
-      setMentionQuery(null);
-    }
+    const match = val.slice(0, cursorPos).match(/@([a-zA-Z0-9._-]{0,40})$/);
+    setMentionQuery(match ? (match[1] ?? "") : null);
   };
 
   const insertMentionHandle = (actor: ActorCard) => {
     const cursorPos = captionRef.current?.selectionStart ?? caption.length;
-    const textBefore = caption.slice(0, cursorPos);
-    const textAfter = caption.slice(cursorPos);
-    const replaced = textBefore.replace(/@([a-zA-Z0-9._-]{0,40})$/, `@${actor.handle} `);
-    setCaption(`${replaced}${textAfter}`);
+    const replaced = caption
+      .slice(0, cursorPos)
+      .replace(/@([a-zA-Z0-9._-]{0,40})$/, `@${actor.handle} `);
+    setCaption(`${replaced}${caption.slice(cursorPos)}`);
     setMentionQuery(null);
     captionRef.current?.focus();
+  };
+
+  const handleAddPlatformLink = () => {
+    const cleanUrl = draftLinkUrl.trim();
+    if (!cleanUrl) return;
+    const normalized =
+      cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+        ? cleanUrl
+        : `https://${cleanUrl}`;
+    setExternalLinks((prev) => [
+      ...prev,
+      {
+        platform: draftPlatform,
+        label: draftLinkLabel.trim() || `Watch on ${draftPlatform}`,
+        url: normalized,
+      },
+    ]);
+    setDraftLinkUrl("");
+    setDraftLinkLabel("");
   };
 
   const handleFilesSelected = async (files: FileList | null) => {
@@ -311,7 +399,7 @@ export function SocialFeedManager() {
 
   const handlePublish = async () => {
     if (uploadedSlides.length === 0) {
-      toast.error("Please upload at least one photo or video (up to 150 MB).");
+      toast.error("Please upload at least one photo or video.");
       return;
     }
     setPublishing(true);
@@ -324,9 +412,11 @@ export function SocialFeedManager() {
           media_asset_id: s.media_asset_id,
           media_type: s.media_type,
           media_url: s.url,
+          ...(s.thumbnail_url ? { thumbnail_url: s.thumbnail_url } : {}),
           aspect_ratio: postType === "REEL" ? "9:16" : "4:5",
           file_size_bytes: s.file_size_bytes,
         })),
+        external_links: externalLinks,
         collaborator_user_ids: selectedCollabs.map((c) => c.user_id),
       });
       toast.success(
@@ -338,6 +428,7 @@ export function SocialFeedManager() {
       setCaption("");
       setUploadedSlides([]);
       setSelectedCollabs([]);
+      setExternalLinks([]);
       await loadAll();
     } catch (err: unknown) {
       const msg =
@@ -357,6 +448,7 @@ export function SocialFeedManager() {
           ? "Collab accepted! Post now appears on both your profile and public feed."
           : "Collab invite updated.",
       );
+      setPreviewEntry(null);
       await loadAll();
     } catch {
       toast.error("Could not update collaboration request.");
@@ -450,8 +542,8 @@ export function SocialFeedManager() {
               Share your first Reel, Video, or Photo
             </h3>
             <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-              Upload videos up to 150 MB (any duration), @mention Businesses, and invite them as
-              Co-Author Collaborators on Kerala Creator Collab.
+              Upload videos with no size/duration limits, attach social links, @mention Businesses,
+              and invite them as Co-Author Collaborators.
             </p>
             <Button className="mt-4" onClick={() => setComposerOpen(true)}>
               <Plus className="size-4" /> Create Showcase Post
@@ -482,30 +574,39 @@ export function SocialFeedManager() {
                 className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex items-start gap-3">
-                  {entry.post.media_items[0]?.media_url ? (
-                    <img
-                      src={entry.post.media_items[0].media_url}
-                      alt=""
-                      className="size-16 rounded-xl object-cover bg-muted"
-                    />
-                  ) : (
-                    <div className="grid size-16 place-items-center rounded-xl bg-muted">
-                      <Video className="size-5 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewEntry(entry)}
+                    className="shrink-0 text-left transition hover:opacity-85"
+                    title="Click to watch preview"
+                  >
+                    <MediaThumbnail media={entry.post.media_items[0]} className="size-20 rounded-xl" />
+                  </button>
+                  <div className="min-w-0">
                     <p className="text-sm font-bold">
                       @{entry.post.author.handle || entry.post.author.display_name}{" "}
                       <span className="font-normal text-muted-foreground">
                         ({entry.relation_type === "COLLAB_INVITE" ? "Collab Invite" : "@Mentioned you"})
                       </span>
                     </p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {entry.post.caption}
+                    <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Clock className="size-3" /> {formatPostTimestamp(entry.created_at)}
                     </p>
-                    <span className="mt-1.5 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold">
-                      Status: {entry.invite_status}
-                    </span>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {entry.post.caption || "No caption"}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold">
+                        {entry.invite_status}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEntry(entry)}
+                        className="text-[11px] font-semibold text-coral hover:underline"
+                      >
+                        Preview Video / Media
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -559,6 +660,71 @@ export function SocialFeedManager() {
         </div>
       )}
 
+      {/* Video / Media Preview Modal for Collab Requests */}
+      <Dialog open={Boolean(previewEntry)} onOpenChange={(o) => !o && setPreviewEntry(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold">
+              Preview from @{previewEntry?.post.author.handle || previewEntry?.post.author.display_name}
+            </DialogTitle>
+            <DialogDescription>
+              {previewEntry ? formatPostTimestamp(previewEntry.created_at) : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {previewEntry && (
+            <div className="space-y-3">
+              <div className="aspect-[4/5] max-h-[55vh] w-full overflow-hidden rounded-xl bg-black">
+                {previewEntry.post.media_items[0]?.media_type === "VIDEO" ? (
+                  <video
+                    src={previewEntry.post.media_items[0].media_url}
+                    poster={previewEntry.post.media_items[0].thumbnail_url || undefined}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="h-full w-full object-contain"
+                  />
+                ) : previewEntry.post.media_items[0]?.media_url ? (
+                  <img
+                    src={previewEntry.post.media_items[0].media_url}
+                    alt=""
+                    className="h-full w-full object-contain"
+                  />
+                ) : null}
+              </div>
+              <p className="text-xs leading-relaxed text-foreground">
+                {previewEntry.post.caption || "No caption"}
+              </p>
+              {previewEntry.post.external_links?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {previewEntry.post.external_links.map((lnk, idx) => (
+                    <a
+                      key={idx}
+                      href={lnk.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold hover:bg-secondary/80"
+                    >
+                      <ExternalLink className="size-3" /> {lnk.label || lnk.platform}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            {previewEntry?.relation_type === "COLLAB_INVITE" &&
+              previewEntry.invite_status !== "ACCEPTED" && (
+                <Button onClick={() => void handleCollabRespond(previewEntry.post.id, "ACCEPT")}>
+                  <Check className="size-4" /> Accept Collab
+                </Button>
+              )}
+            <Button variant="outline" onClick={() => setPreviewEntry(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Showcase Post Composer */}
       <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -567,9 +733,9 @@ export function SocialFeedManager() {
               Create Showcase Post / Reel
             </DialogTitle>
             <DialogDescription>
-              Upload photos (up to 10 MB) or videos (up to 150 MB, any duration). Use{" "}
-              <code>@handle</code> in caption to mention Businesses or Creators, and invite them as
-              Co-Authors.
+              Upload photos (up to 10 MB) or videos (no size/duration limit). Use{" "}
+              <code>@handle</code> in caption to mention Businesses or Creators, and attach
+              external platform links.
             </DialogDescription>
           </DialogHeader>
 
@@ -578,14 +744,15 @@ export function SocialFeedManager() {
             <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs text-muted-foreground">
-                  Supports MP4, MOV, WebM (max <strong>150 MB</strong>) & JPG/PNG/WebP (max 10 MB)
+                  Supports MP4, MOV, WebM, M4V (<strong>unlimited size & duration</strong>) &
+                  JPG/PNG/WebP (max 10 MB)
                 </div>
                 <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90">
                   <ImagePlus className="size-3.5" /> Add Photo / Video
                   <input
                     type="file"
                     multiple
-                    accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
+                    accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.m4v"
                     className="hidden"
                     onChange={(e) => void handleFilesSelected(e.target.files)}
                   />
@@ -596,7 +763,7 @@ export function SocialFeedManager() {
                 <div className="mt-3 space-y-1">
                   <Progress value={uploadProgress} className="h-2" />
                   <p className="text-[11px] text-muted-foreground">
-                    Uploading media... {uploadProgress}%
+                    Uploading media & generating thumbnail... {uploadProgress}%
                   </p>
                 </div>
               )}
@@ -609,7 +776,11 @@ export function SocialFeedManager() {
                       className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-black"
                     >
                       {s.media_type === "VIDEO" ? (
-                        <video src={s.url} muted className="h-full w-full object-cover" />
+                        s.thumbnail_url ? (
+                          <img src={s.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <video src={s.url} muted className="h-full w-full object-cover" />
+                        )
                       ) : (
                         <img src={s.url} alt="" className="h-full w-full object-cover" />
                       )}
@@ -673,6 +844,74 @@ export function SocialFeedManager() {
                         {actor.role}
                       </span>
                     </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Multiple External Platform Links Builder */}
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold">
+                  Original Platform / Destination Links (Optional, Multiple Allowed)
+                </label>
+                <span className="text-[11px] text-muted-foreground">
+                  Shown beside post in public viewer
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[150px_1fr_1fr_auto]">
+                <select
+                  value={draftPlatform}
+                  onChange={(e) => setDraftPlatform(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-2.5 text-xs"
+                >
+                  {PLATFORM_LINK_OPTIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  placeholder="Button label (e.g. Watch Reel)"
+                  value={draftLinkLabel}
+                  onChange={(e) => setDraftLinkLabel(e.target.value)}
+                  className="h-9 text-xs"
+                />
+                <Input
+                  placeholder="https://instagram.com/reel/..."
+                  value={draftLinkUrl}
+                  onChange={(e) => setDraftLinkUrl(e.target.value)}
+                  className="h-9 text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAddPlatformLink}
+                  disabled={!draftLinkUrl.trim()}
+                >
+                  <Plus className="size-3.5" /> Add
+                </Button>
+              </div>
+              {externalLinks.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {externalLinks.map((lnk, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs"
+                    >
+                      <Link2 className="size-3 text-coral" />
+                      <strong>{lnk.platform}:</strong>
+                      <span className="max-w-[140px] truncate">{lnk.label || lnk.url}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExternalLinks((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
                   ))}
                 </div>
               )}
